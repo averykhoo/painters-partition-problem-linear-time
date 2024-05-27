@@ -11,7 +11,10 @@
     * todo
 3. optional optimizations for lower amortized time
     * pre-build `lo,hi` ranges by partitioning using `min_partition` and `min_partition + 1` from both ends
+      * if this reaches the end then we can exit early
     * update ranges on-the-fly at each outer binary search run
+    * exit the inner loop early if we hit any `hi`, since the partition automatically succeeds
+      * or falls below `lo`, since the partition fails
 
 ## why it works
 
