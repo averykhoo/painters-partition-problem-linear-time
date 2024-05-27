@@ -3,7 +3,7 @@
 ## how it works
 
 1. pre-processing (linear time)
-    * cumulative sum
+    * cumulative sum (and total sum, but that's just the last element)
     * find max
     * build lookup table for range of `min_partition := max(math.ceil(sum(xs) / k), max(xs))`
     * build lookup table for range of `max_partition := min_partition + math.ceil(sum(xs) / k)`
