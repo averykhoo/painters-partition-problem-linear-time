@@ -15,6 +15,7 @@
     * update ranges on-the-fly at each outer binary search run
     * exit the inner loop early if we hit any `hi`, since the partition automatically succeeds
       * or falls below `lo`, since the partition fails
+    * if `k <= len(xs)` then just return `max(xs)`
 
 ## why it works
 
