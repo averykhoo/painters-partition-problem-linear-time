@@ -17,16 +17,23 @@
     * todo
 4. optional optimizations for lower amortized time
     * pre-build `lo,hi` ranges by partitioning using `min_partition` and `min_partition + 1` from both ends
-      * if this reaches the end then we can exit early
+        * if this reaches the end then we can exit early
     * update ranges on-the-fly at each outer binary search run
     * exit the inner loop early if we hit any `hi`, since the partition automatically succeeds
-      * or falls below `lo`, since the partition fails
+        * or falls below `lo`, since the partition fails
     * if `k <= len(xs)` then just return `max(xs)`
 
 ## why it works
 
-* as long as `max(xs) < math.ceil(sum(xs) / k)`, the partition size will always fall between `math.ceil(sum(xs) / k)`
-  and `2 * math.ceil(sum(xs) / k)`
+* as long as (the math isn't exact here, TODO) `max(xs) < 2 * math.ceil(sum(xs) / k)`,
+  then the partition size will always fall between `math.ceil(sum(xs) / k)` and `2 * math.ceil(sum(xs) / k)`
 * if `max(xs) >= math.ceil(sum(xs) / k)`, then the partition size will always fall between `max(xs)`
   and `max(xs) + math.ceil(sum(xs) / k)`
     * the upper bound can be optimized further, but doesn't matter in the proof of `O log(n)` runtime
+* so there's a gap between the upper and lower bound of about `sum(xs) / k` which is lower-bounded by `len(xs) / k`,
+  and upper-bounded by `max(xs) * len(xs) / k`
+* doing a binary search over this twice multiplied by `k` is (kind of) `O(k * log(N/k) ** 2)`
+    * TODO: figure out how to remove `max(xs)` from the factor
+* and since `O(log(n)) ** 2 < O(n)`, we have `O(k * N/k)` which is basically `O(N)`
+* also there's preprocessing which is `O(N)`
+* where `N == len(xs)`
