@@ -2,14 +2,20 @@
 
 ## how it works
 
-1. pre-processing (linear time)
+1. trivial cases
+    * `if any(x <= 0 for x in xs): raise ValueError`
+    * `if k < 1: raise ValueError`
+    * `if len(xs) == 0: return 0`
+    * `if k == 1: return sum(xs)`
+    * `if len(xs) <= k: return max(xs)`
+2. pre-processing (linear time)
     * cumulative sum (and total sum, but that's just the last element)
     * find max
     * build lookup table for range of `min_partition := max(math.ceil(sum(xs) / k), max(xs))`
-    * build lookup table for range of `max_partition := min_partition + math.ceil(sum(xs) / k)`
-2. binary search within binary search
+    * build lookup table for range of `max_partition := max(2 * math.ceil((sum(xs) - xs[-1]) / (k - 1)), max(xs))`
+3. binary search within binary search
     * todo
-3. optional optimizations for lower amortized time
+4. optional optimizations for lower amortized time
     * pre-build `lo,hi` ranges by partitioning using `min_partition` and `min_partition + 1` from both ends
       * if this reaches the end then we can exit early
     * update ranges on-the-fly at each outer binary search run
