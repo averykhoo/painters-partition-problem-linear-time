@@ -34,6 +34,8 @@
   and upper-bounded by `max(xs) * len(xs) / k`
 * doing a binary search over this twice multiplied by `k` is (kind of) `O(k * log(N/k) ** 2)`
     * TODO: figure out how to remove `max(xs)` from the factor
+    * maybe if we assume that `log(len(xs)/k) * log(max(xs)/k) ~= len(xs) * constant?`
+    * which might be safe since if we use the same datatype for `x` and `len(xs)` then they're both kinda bounded?
 * and since `O(log(n)) ** 2 < O(n)`, we have `O(k * N/k)` which is basically `O(N)`
 * also there's preprocessing which is `O(N)`
 * where `N == len(xs)`
