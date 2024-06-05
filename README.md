@@ -2,20 +2,30 @@
 
 ## how it works
 
-1. trivial cases
+1. error handling
     * `if any(x <= 0 for x in xs): raise ValueError`
-    * `if k < 1: raise ValueError`
+        * technically, `x==0` is solvable: filter these values out, keeping track of their original locations (in a
+          pre-pre-processing step, since it might still be a trivial case), then restore them in a post-processing step
+    * `if k <= 0: raise ValueError`
+2. trivial/edge cases (simple `O(n)` solutions)
     * `if len(xs) == 0: return 0`
-    * `if k == 1: return sum(xs)`
     * `if len(xs) <= k: return max(xs)`
-2. pre-processing (linear time)
+    * `if k == 1: return sum(xs)`
+    * `if k == 2:` fairly trivial `O(n)` "meet-in-the middle" algorithm, just start from both ends
+    * `if k == 3:` first calculate `sum(xs)` then reuse the `k==2` code but with a middle segment
+    * `if k == len(xs) + 1:` merge the two smallest neighboring elements, then return the new `max(xs)`
+        * with recursion and some clever indexing, this should be an `O(len(xs) * log(len(xs)))` general solution
+3. pre-processing (`O(n)`)
     * cumulative sum (and total sum, but that's just the last element)
     * find max
-    * build lookup table for range of `min_partition := max(math.ceil(sum(xs) / k), max(xs))`
-    * build lookup table for range of `max_partition := max(2 * math.ceil((sum(xs) - xs[-1]) / (k - 1)), max(xs))`
-3. binary search within binary search
-    * todo
-4. optional optimizations for lower amortized time
+    * build lookup tables for ranges of `min_partition` and `max_partition`
+4. binary search within binary search (`O(k * log(sum(xs)) * log(len(xs)))`)
+    * `pointer = 0`
+    * binary search with `lo = min_partition` and `hi = max_partition`
+        * `for partition_idx in range(k):`
+            * binary search using `lo = min_partition_lookup[pointer]` and `hi = max_partition_lookup[pointer]`
+            * `if new_pointer >= len(xs):` depends if we're at the last partition
+5. optional optimizations for lower amortized time
     * pre-build `lo,hi` ranges by partitioning using `min_partition` and `min_partition + 1` from both ends
         * if this reaches the end then we can exit early
     * update ranges on-the-fly at each outer binary search run
@@ -25,11 +35,22 @@
 
 ## why it works
 
-* as long as (the math isn't exact here, TODO) `max(xs) < 2 * math.ceil(sum(xs) / k)`,
-  then the partition size will always fall between `math.ceil(sum(xs) / k)` and `2 * math.ceil(sum(xs) / k)`
-* if `max(xs) >= math.ceil(sum(xs) / k)`, then the partition size will always fall between `max(xs)`
-  and `max(xs) + math.ceil(sum(xs) / k)`
-    * the upper bound can be optimized further, but doesn't matter in the proof of `O log(n)` runtime
+* if `max(xs) < math.ceil(sum(xs) / k)`,
+  then `min_partition = math.ceil(sum(xs) / k)`
+  and `max_partition = math.ceil(sum(xs) / k) + max(xs)`
+* if `math.ceil(sum(xs) / k) < max(xs) < 2 * math.ceil((sum(xs) - 1) / (k - 1))`,
+  then `min_partition = max(xs)`
+  and `max_partition = 2 * math.ceil((sum(xs) - 1) / (k - 1))`
+* if `max(xs) >= 2 * math.ceil((sum(xs) - 1) / (k - 1))`,
+  then `min_partition = max_partition = math.ceil(sum(xs) / k)`
+
+* slightly more exact boundary conditions:
+    * `math.ceil(sum(xs) / k)`
+    * `math.ceil(sum(xs) / k) + max(xs) - 1`
+    * `2 * math.ceil((sum(xs) - min(xs[0], xs[-1])) / (k - 1))`
+    * `max(xs)`
+
+* the upper bound can be optimized further, but doesn't matter in the proof of `O log(n)` runtime
 * so there's a gap between the upper and lower bound of about `sum(xs) / k` which is lower-bounded by `len(xs) / k`,
   and upper-bounded by `max(xs) * len(xs) / k`
 * doing a binary search over this twice multiplied by `k` is (kind of) `O(k * log(N/k) ** 2)`
@@ -38,4 +59,21 @@
     * which might be safe since if we use the same datatype for `x` and `len(xs)` then they're both kinda bounded?
 * and since `O(log(n)) ** 2 < O(n)`, we have `O(k * N/k)` which is basically `O(N)`
 * also there's preprocessing which is `O(N)`
-* where `N == len(xs)`
+* where `N == len(xs)
+* overall i think the complexity is `O(len(xs)) + O(k * log(len(xs)/k) * log(sum(xs)/k))`
+    * can't figure out how to remove the dependency on the size of items in xs
+    * e.g. if all the items are random uint64s, then even if the list has length 10, the `log(mean(xs))` term dominates
+
+## fancy math
+
+* proof for `max_partition <= 2 * math.ceil((sum(xs) - min(xs[0], xs[-1])) / (k - 1))`
+    * efficient packing invariants:
+        * the total sum of every pair of partitions must be at least partition + 1
+        * the total size of all partitions is hence at most (roughly) 2 * sum(xs)
+* proof for the `math.ceil(sum(xs) / k) + max(xs) - 1` case
+    * basically guarantees a packing of at least mean(xs) into each partition
+
+# TODO
+
+* need to standardize the notation - is it `N = sum(xs)` or `N = len(xs)`? how about `k`?
+* make the math more precise
