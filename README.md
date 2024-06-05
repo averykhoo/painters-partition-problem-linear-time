@@ -50,18 +50,8 @@
     * `2 * math.ceil((sum(xs) - min(xs[0], xs[-1])) / (k - 1))`
     * `max(xs)`
 
-* the upper bound can be optimized further, but doesn't matter in the proof of `O log(n)` runtime
-* so there's a gap between the upper and lower bound of about `sum(xs) / k` which is lower-bounded by `len(xs) / k`,
-  and upper-bounded by `max(xs) * len(xs) / k`
-* doing a binary search over this twice multiplied by `k` is (kind of) `O(k * log(N/k) ** 2)`
-    * TODO: figure out how to remove `max(xs)` from the factor
-    * maybe if we assume that `log(len(xs)/k) * log(max(xs)/k) ~= len(xs) * constant?`
-    * which might be safe since if we use the same datatype for `x` and `len(xs)` then they're both kinda bounded?
-* and since `O(log(n)) ** 2 < O(n)`, we have `O(k * N/k)` which is basically `O(N)`
-* also there's preprocessing which is `O(N)`
-* where `N == len(xs)
 * overall i think the complexity is `O(len(xs)) + O(k * log(len(xs)/k) * log(sum(xs)/k))`
-    * can't figure out how to remove the dependency on the size of items in xs
+    * can't figure out how to remove the dependency on the sum of items in xs
     * e.g. if all the items are random uint64s, then even if the list has length 10, the `log(mean(xs))` term dominates
 
 ## fancy math
@@ -72,6 +62,10 @@
         * the total size of all partitions is hence at most (roughly) 2 * sum(xs)
 * proof for the `math.ceil(sum(xs) / k) + max(xs) - 1` case
     * basically guarantees a packing of at least mean(xs) into each partition
+* proof that `O(k * log(sum(xs)) * log(len(xs))) < O(sum(xs))`
+    * and hopefully also `< O(len(xs))` but i'll need to remove the `mean(xs)` (or `max(xs)`) factor somehow
+    * which might be safe since if we use the same datatype for `x` and `len(xs)` then they're both kinda bounded?
+        * but it feels like a cop-out to assume that `log(max(xs)) ~= constant` because of the data type
 
 # TODO
 
