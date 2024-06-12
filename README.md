@@ -48,14 +48,35 @@
     * (`min_partition`) `math.ceil(sum(xs) / k)`
     * (`min_partition`) `max(xs)`
     * (`max_partition`) `math.ceil(sum(xs) / k) + max(xs) - 1`
-    * (`max_partition` if `len(xs)` is even) `2 * math.ceil(sum(xs) / k) - 1` 
+    * (`max_partition` if `len(xs)` is even) `2 * math.ceil(sum(xs) / k) - 1`
     * (`max_partition` if `len(xs)` is odd) `2 * math.ceil((sum(xs) - max(xs[0], xs[-1])) / (k - 1)) - 1`
     * (`max_partition` ignoring length) `2 * math.ceil((sum(xs) - min(xs[0], xs[-1])) / (k - 1)) - 1`
     * (`max_partition`) `max(xs)`
 
+* worst case conditions (todo):
+    * `max(xs) ~= sum(xs) / k`
+    * `max(xs) / mean(xs) ~= len(xs) / k`
+    *
+
 * overall i think the complexity is `O(len(xs)) + O(k * log(len(xs)/k) * log(sum(xs)/k))`
     * can't figure out how to remove the dependency on the sum of items in xs
     * e.g. if all the items are random uint64s, then even if the list has length 10, the `log(mean(xs))` term dominates
+    * at least it's certain that this is less than `O(sum(xs))`
+    * attempt 1:
+        * `O(len(xs)) + O(k * log(len(xs)/k) * (log(len(xs)/k) + log(mean(xs))))`
+        * `O(len(xs)) + O(k * log(len(xs)/k) ** 2) + O(k * log(len(xs)/k) * log(mean(xs)))`
+        * and since `O(k * log(len(xs)/k) ** 2) << O(len(xs))` we can drop that term
+        * but is `O(k * log(len(xs)/k) * log(mean(xs)))` less than `O(len(xs))`?
+        * `O(k * log(max(xs) / mean(xs)) * log(mean(xs)))` is maximized when `mean(xs) -> 2`
+        * maybe taking it as a constant factor of 2 is acceptable?
+    * attempt 2:
+        * `O(len(xs)) + O(k * log(len(xs)/k) * log(max(xs)))`
+        * if we assume a uniform distribution, then `max(xs) ~= mean(xs) * 2`
+        * and running the first attempt in reverse then `O(len(xs)) + O(k * log(len(xs)/k) ** 2)` which is `O(len(xs))`
+        * but this requires a uniform distribution
+    * attempt 3:
+        * maybe there's a clever way to skip impossible numbers when dealing with large paintings
+        * but simple preprocessing seems to be O(nlogn) so that's moot 
 
 ## fancy math
 
