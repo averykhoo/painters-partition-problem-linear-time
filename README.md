@@ -45,10 +45,13 @@
   then `min_partition = max_partition = math.ceil(sum(xs) / k)`
 
 * slightly more exact boundary conditions:
-    * `math.ceil(sum(xs) / k)`
-    * `math.ceil(sum(xs) / k) + max(xs) - 1`
-    * `2 * math.ceil((sum(xs) - min(xs[0], xs[-1])) / (k - 1))`
-    * `max(xs)`
+    * (`min_partition`) `math.ceil(sum(xs) / k)`
+    * (`min_partition`) `max(xs)`
+    * (`max_partition`) `math.ceil(sum(xs) / k) + max(xs) - 1`
+    * (`max_partition` if `len(xs)` is even) `2 * math.ceil(sum(xs) / k) - 1` 
+    * (`max_partition` if `len(xs)` is odd) `2 * math.ceil((sum(xs) - max(xs[0], xs[-1])) / (k - 1)) - 1`
+    * (`max_partition` ignoring length) `2 * math.ceil((sum(xs) - min(xs[0], xs[-1])) / (k - 1)) - 1`
+    * (`max_partition`) `max(xs)`
 
 * overall i think the complexity is `O(len(xs)) + O(k * log(len(xs)/k) * log(sum(xs)/k))`
     * can't figure out how to remove the dependency on the sum of items in xs
