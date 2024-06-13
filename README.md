@@ -56,42 +56,47 @@
 * worst case conditions (todo):
     * `max(xs) ~= sum(xs) / k`
     * `max(xs) / mean(xs) ~= len(xs) / k`
-    *
 
 * overall i think the complexity is `O(len(xs)) + O(k * log(len(xs)/k) * log(sum(xs)/k))`
     * can't figure out how to remove the dependency on the sum of items in xs
     * e.g. if all the items are random uint64s, then even if the list has length 10, the `log(mean(xs))` term dominates
     * at least it's certain that this is less than `O(sum(xs))`
-    * attempt 1:
-        * `O(len(xs)) + O(k * log(len(xs)/k) * (log(len(xs)/k) + log(mean(xs))))`
-        * `O(len(xs)) + O(k * log(len(xs)/k) ** 2) + O(k * log(len(xs)/k) * log(mean(xs)))`
-        * and since `O(k * log(len(xs)/k) ** 2) << O(len(xs))` we can drop that term
-        * but is `O(k * log(len(xs)/k) * log(mean(xs)))` less than `O(len(xs))`?
-        * `O(k * log(max(xs) / mean(xs)) * log(mean(xs)))` is maximized when `mean(xs) ** 2 == max(xs)`
-        * so this simplifies to `O(k * log(max(xs) / mean(xs)) ** 2) == O(k * log(len(xs)/k) ** 2)`
-    * attempt 2:
-        * `O(len(xs)) + O(k * log(len(xs)/k) * log(max(xs)))`
-        * if we assume a uniform distribution, then `max(xs) ~= mean(xs) * 2`
-        * and running the first attempt in reverse then `O(len(xs)) + O(k * log(len(xs)/k) ** 2)` which is `O(len(xs))`
-        * but this requires a uniform distribution
-    * attempt 3:
-        * maybe there's a clever way to skip impossible numbers when dealing with large paintings
-        * but simple preprocessing seems to be O(nlogn) so that's moot 
 
 ## fancy math
 
+* attempt 3:
+    * maybe there's a clever way to skip impossible numbers when dealing with large paintings
+    * but simple preprocessing seems to be O(nlogn) so that's moot
+* attempt 2:
+    * `O(len(xs)) + O(k * log(len(xs)/k) * log(max(xs)))`
+    * if we assume a uniform distribution, then `max(xs) ~= mean(xs) * 2`
+    * and running the first attempt in reverse then `O(len(xs)) + O(k * log(len(xs)/k) ** 2)` which is `O(len(xs))`
+    * but this requires a uniform distribution
+* attempt 1:
+    * `O(len(xs)) + O(k * log(len(xs)/k) * (log(len(xs)/k) + log(mean(xs))))`
+    * `O(len(xs)) + O(k * log(len(xs)/k) ** 2) + O(k * log(len(xs)/k) * log(mean(xs)))`
+    * and since `O(k * log(len(xs)/k) ** 2) << O(len(xs))` we can drop that term
+    * but is `O(k * log(len(xs)/k) * log(mean(xs)))` less than `O(len(xs))`?
+    * `O(k * log(max(xs) / mean(xs)) * log(mean(xs)))` is maximized when `mean(xs) ** 2 == max(xs)`
+    * so this simplifies to `O(k * log(max(xs) / mean(xs)) ** 2) == O(k * log(len(xs)/k) ** 2)`
 * proof for `max_partition <= 2 * math.ceil((sum(xs) - min(xs[0], xs[-1])) / (k - 1))`
     * efficient packing invariants:
         * the total sum of every pair of partitions must be at least partition + 1
         * the total size of all partitions is hence at most (roughly) 2 * sum(xs)
 * proof for the `math.ceil(sum(xs) / k) + max(xs) - 1` case
     * basically guarantees a packing of at least mean(xs) into each partition
-* proof that `O(k * log(sum(xs)) * log(len(xs))) < O(sum(xs))`
+* proof that `O(k * log(sum(xs)/k) * log(len(xs)/k)) < O(sum(xs))`
     * and hopefully also `< O(len(xs))` but i'll need to remove the `mean(xs)` (or `max(xs)`) factor somehow
     * which might be safe since if we use the same datatype for `x` and `len(xs)` then they're both kinda bounded?
         * but it feels like a cop-out to assume that `log(max(xs)) ~= constant` because of the data type
+* notation:
+    * `xs` is a list of paintings, from `x₀` to `xₙ₋₁` (or `xs[0]` to `xs[-1] == xs[n-1]` for ascii compat)
+        * `n` is `len(xs)`, and `N` is `sum(xs)`
+    * `k` is the number of partitions (or painters)
+    * `p` is partition size, `p̂` is optimal partition size (maybe `P` for better ascii compat?)
+    * `log` is base 2
+    *
 
 # TODO
 
-* need to standardize the notation - is it `N = sum(xs)` or `N = len(xs)`? how about `k`?
 * make the math more precise
