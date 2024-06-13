@@ -67,8 +67,8 @@
         * `O(len(xs)) + O(k * log(len(xs)/k) ** 2) + O(k * log(len(xs)/k) * log(mean(xs)))`
         * and since `O(k * log(len(xs)/k) ** 2) << O(len(xs))` we can drop that term
         * but is `O(k * log(len(xs)/k) * log(mean(xs)))` less than `O(len(xs))`?
-        * `O(k * log(max(xs) / mean(xs)) * log(mean(xs)))` is maximized when `mean(xs) -> 2`
-        * maybe taking it as a constant factor of 2 is acceptable?
+        * `O(k * log(max(xs) / mean(xs)) * log(mean(xs)))` is maximized when `mean(xs) ** 2 == max(xs)`
+        * so this simplifies to `O(k * log(max(xs) / mean(xs)) ** 2) == O(k * log(len(xs)/k) ** 2)`
     * attempt 2:
         * `O(len(xs)) + O(k * log(len(xs)/k) * log(max(xs)))`
         * if we assume a uniform distribution, then `max(xs) ~= mean(xs) * 2`
