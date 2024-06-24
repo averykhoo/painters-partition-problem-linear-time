@@ -19,6 +19,8 @@
     * cumulative sum (and total sum, but that's just the last element)
     * find max
     * build lookup tables for ranges of `min_partition` and `max_partition`
+        * optional optimization: do a quick test to see whether `min_partition` works
+        * only requires a couple extra vars in the loop
 4. binary search within binary search (`O(k * log(sum(xs)) * log(len(xs)))`)
     * `pointer = 0`
     * binary search with `lo = min_partition` and `hi = max_partition`
@@ -26,12 +28,16 @@
             * binary search using `lo = min_partition_lookup[pointer]` and `hi = max_partition_lookup[pointer]`
             * `if new_pointer >= len(xs):` depends if we're at the last partition
 5. optional optimizations for lower amortized time
-    * pre-build `lo,hi` ranges by partitioning using `min_partition` and `min_partition + 1` from both ends
+    * pre-build `lo,hi` ranges by partitioning using `min_partition + 1` from the opposite end
+        * and `min_partition` from the normal end
         * if this reaches the end then we can exit early
     * update ranges on-the-fly at each outer binary search run
     * exit the inner loop early if we hit any `hi`, since the partition automatically succeeds
         * or falls below `lo`, since the partition fails
     * if `k <= len(xs)` then just return `max(xs)`
+    * if we try a partition size `a` and the largest partition is `b`, but it's still too big,
+      then exclude from `b`, not from `a`
+    *
 
 ## why it works
 
@@ -47,6 +53,7 @@
 * slightly more exact boundary conditions:
     * (`min_partition`) `math.ceil(sum(xs) / k)`
     * (`min_partition`) `max(xs)`
+    * (`max_partition`) `math.ceil((sum(xs) - max(x)) / k) + max(xs)`
     * (`max_partition`) `math.ceil(sum(xs) / k) + max(xs) - 1`
     * (`max_partition` if `len(xs)` is even) `2 * math.ceil(sum(xs) / k) - 1`
     * (`max_partition` if `len(xs)` is odd) `2 * math.ceil((sum(xs) - max(xs[0], xs[-1])) / (k - 1)) - 1`
