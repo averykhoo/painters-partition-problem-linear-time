@@ -37,28 +37,32 @@
     * if `k <= len(xs)` then just return `max(xs)`
     * if we try a partition size `a` and the largest partition is `b`, but it's still too big,
       then exclude from `b`, not from `a`
-    * if the partition has only one option based on the `lo` and `hi` then skip search 
+    * keep a (linked) list of which partitions are still defined as ranges, removing any that become strictly defined,
+      which helps reduce the strictly O(K * log(whatever)) per iteration to something potentially less than K
+        * but i'm not sure how to math the runtime
 
 ## why it works
 
-* if `max(xs) < math.ceil(sum(xs) / k)`,
-  then `min_partition = math.ceil(sum(xs) / k)`
-  and `max_partition = math.ceil(sum(xs) / k) + max(xs)`
-* if `math.ceil(sum(xs) / k) < max(xs) < 2 * math.ceil((sum(xs) - 1) / (k - 1))`,
-  then `min_partition = max(xs)`
-  and `max_partition = 2 * math.ceil((sum(xs) - 1) / (k - 1))`
-* if `max(xs) >= 2 * math.ceil((sum(xs) - 1) / (k - 1))`,
-  then `min_partition = max_partition = math.ceil(sum(xs) / k)`
+TODO: check the math in this section again now that i've forgotten how it was derived
+
+* if `max(xs)` < `math.ceil(sum(xs) / k)`, then:
+    * `min_partition = math.ceil(sum(xs) / k)` and
+    * `max_partition = math.ceil(sum(xs) / k) + max(xs)`
+* if `math.ceil(sum(xs) / k)` < `max(xs)` < `2 * math.ceil((sum(xs) - 1) / (k - 1))`, then:
+    * `min_partition = max(xs)` and
+    * `max_partition = 2 * math.ceil((sum(xs) - 1) / (k - 1))`
+* if `max(xs)` >= `2 * math.ceil((sum(xs) - 1) / (k - 1))`, then:
+    * `min_partition = max_partition = math.ceil(sum(xs) / k)`
 
 * slightly more exact boundary conditions:
-    * (`min_partition`) `math.ceil(sum(xs) / k)`
-    * (`min_partition`) `max(xs)`
-    * (`max_partition`) `math.ceil((sum(xs) - max(x)) / k) + max(xs)`
-    * (`max_partition`) `math.ceil(sum(xs) / k) + max(xs) - 1`
-    * (`max_partition` if `len(xs)` is even) `2 * math.ceil(sum(xs) / k) - 1`
-    * (`max_partition` if `len(xs)` is odd) `2 * math.ceil((sum(xs) - max(xs[0], xs[-1])) / (k - 1)) - 1`
-    * (`max_partition` ignoring length) `2 * math.ceil((sum(xs) - min(xs[0], xs[-1])) / (k - 1)) - 1`
-    * (`max_partition`) `max(xs)`
+    * `min_partition` >= `math.ceil(sum(xs) / k)`
+    * `min_partition` >= `max(xs)`
+    * `max_partition` <= `math.ceil((sum(xs) - max(x)) / k) + max(xs)`
+    * `max_partition` <= `math.ceil(sum(xs) / k) + max(xs) - 1`
+    * if `len(xs)` is even, `max_partition` <= `2 * math.ceil(sum(xs) / k) - 1`
+    * if `len(xs)` is odd, `max_partition` <= `2 * math.ceil((sum(xs) - max(xs[0], xs[-1])) / (k - 1)) - 1`
+    * `max_partition` <= `2 * math.ceil((sum(xs) - min(xs[0], xs[-1])) / (k - 1)) - 1`
+    * `max_partition` >= `max(xs)`
 
 * worst case conditions (todo):
     * `max(xs) ~= sum(xs) / k`
@@ -107,6 +111,8 @@
 # TODO
 
 * make the math more precise
-* `max_partition` is also upper bounded as the shortest contiguous length of boards `n - k + 1`
-* if we keep a running (linked) list of which partitions to check, then we can occasionally reduce the previously minimum factor of k steps per round, which in theory cuts down on the overall runtime but I'm not sure how to math it
-* something about the pigeonhole principle should help prove better runtime when k approaches n since the number of searches has to shrink
+* `max_partition` is also upper bounded as the shortest contiguous length of boards `len(xs) - k + 1`
+* something about the pigeonhole principle should help prove better runtime when `k` approaches `len(xs)`,
+  since the possible range for each partition has to shrink proportionally to `len(xs) - k`
+  * like we can prove that runtime is strictly no worse than `(len(xs)-1)C(k-1) = (len(xs)-1)!/((k-1)!(len(xs)-k))!)`
+  * which should be further bounded by the range of values in `xs`
