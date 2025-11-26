@@ -101,7 +101,8 @@ okay this is the bit I'm unsure of:
     * `min_partition = max(xs)` and
     * `max_partition = 2 * math.ceil((sum(xs) - 1) / (k - 1))`
 * if `max(xs)` >= `2 * math.ceil((sum(xs) - 1) / (k - 1))`, then:
-    * `min_partition = max_partition = math.ceil(sum(xs) / k)`. <-- this seems wrong, should probably be max(xs) - also there will be even and odd variants 
+    * `min_partition = max_partition = math.ceil(sum(xs) / k)`. ~~<-- this seems wrong, should probably be max(xs) - also there will be even and odd variants~~
+    * this seems to come from a packing where all containers are fulle xcept the last on where there is exactly one item - i.e. this is the worst possible packing where all elements are size 1
 
 * slightly more exact boundary conditions:
     * `min_partition` >= `math.ceil(sum(xs) / k)`
