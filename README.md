@@ -82,10 +82,11 @@ so when `sum(xs)/k` > `max(xs)` >= `(sum(xs)+1)/(k+1)` then we know that ~~`max(
 the upper bound probably got simplified to find `max(xs)` <= `P` <= `max(xs)+sum(xs)/k` since removing the other terms keeps the invariant 
 
 invariants that always hold:
-* max(xs) >= sum(xs)/len(xs)
-* len(xs) >= k (otherwise the solution is trivial)
-* P >= sum(xs)/k
-* P < sum(xs)
+* `max(xs) >= sum(xs)/len(xs)`
+* `len(xs) >= k` (otherwise the solution is trivial)
+* `P >= sum(xs)/k`
+* `P >= max(xs)`
+* `P < sum(xs)`
 
 
 
