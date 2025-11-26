@@ -45,6 +45,14 @@
 
 TODO: check the math in this section again now that i've forgotten how it was derived
 
+consider how *empty* the partitions can possibly be if every painter is allocated at least 1 for some optimal partition size P and number of workers k
+for some optimal partitioning P, there must be at least one slot full, i.e. there exists at least one painter allocated P area
+if we allocate the rest P/2+1 but put the max last and allocat that 1, then the total work done is P+1+(k-2)(P/2+1) = 0.5(kP + 2k - 2) which turns out not to be emptiest allocation 
+if the rest are allocated P and 1 alternately, the total work done is (for an odd number k) ((k-1)/2)(P+1)+1 = 0.5(kP + k + 1 - P)
+or for even k (k/2)(P+1) = 0.5(kP + k)
+
+
+
 * if `max(xs)` < `math.ceil(sum(xs) / k)`, then:
     * `min_partition = math.ceil(sum(xs) / k)` and
     * `max_partition = math.ceil(sum(xs) / k) + max(xs)`
