@@ -51,6 +51,8 @@ if we allocate the rest P/2+1 but put the max last and allocat that 1, then the 
 if the rest are allocated P and 1 alternately, the total work done is (for an odd number k) ((k-1)/2)(P+1)+1 = 0.5(kP + k + 1 - P)
 or for even k (k/2)(P+1) = 0.5(kP + k)
 
+now knowing that P = max(xs) we can find the relation that sum(xs)>=0.5(kP+k) if k is even or sum(xs)>=0.5(kP+k+1-P) if k is odd
+
 
 
 * if `max(xs)` < `math.ceil(sum(xs) / k)`, then:
