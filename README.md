@@ -50,12 +50,12 @@ TODO: check the math in this section again now that i've forgotten how it was de
 
 consider how *empty* the partitions can possibly be if every painter is allocated at least 1 for some optimal partition size P and number of workers k
 for some optimal partitioning P, there must be at least one slot full, i.e. there exists at least one painter allocated P area
-if we allocate the rest P/2+1 but put the max last and allocat that 1, then the total work done is P+1+(k-2)(P/2+1) = 0.5(kP + 2k - 2) which turns out not to be emptiest allocation 
-if the rest are allocated P and 1 alternately, the total work done is (for an odd number k) ((k-1)/2)(P+1)+1 = 0.5(kP + k + 1 - P)
-or for even k (k/2)(P+1) = 0.5(kP + k)
+if we allocate the rest P/2+1 but put the max last and allocate that last painter 1, then the total work done is `P+1+(k-2)(P/2+1)` = `0.5(kP + 2k - 2)` which turns out not to be emptiest allocation 
+if the rest are allocated P and 1 alternately, the total work done is (for an odd number k) `((k-1)/2)(P+1)+1 = 0.5(kP + k + 1 - P)`
+or for even k `(k/2)(P+1) = 0.5(kP + k)`
 this defines the largest k needed to hold a total partition size - no matter the length of xs, if we sub in max(xs) and k, if we know that sum(xs) is <= to the sum then we know the answer is just max(xs)
 
-now knowing that P = max(xs) we can find the relation that sum(xs)<=0.5(k(max(xs))+k) if k is even or sum(xs)<=0.5(k(max(xs))+k+1-max(xs)) if k is odd - if either of these hold then the answer is just max(xs)
+now knowing that P = max(xs) we can find the relation that `sum(xs)<=0.5(k(max(xs))+k)` if k is even or `sum(xs)<=0.5(k(max(xs))+k+1-max(xs))` if k is odd - if either of these hold then the answer is just max(xs)
 
 maybe the concept should be called "inefficient packing" since we are packing the list xs into k containers of equal size, but we're adversarially designing xs to pack as poorly as possible
 
@@ -69,14 +69,14 @@ one set of invariants is where the ideal partition size P is equal to the max el
 
 okay another invariant, this time we look at inefficient packing where max(xs) is pretty small, so it's less than P
 
-this means that the most space we can "waste" is (max(xs)-1)*(k-1), since we assume at least k containers are needed and at least one is full
+this means that the most space we can "waste" is `(max(xs)-1) * (k-1)`, since we assume at least k containers are needed and at least one is full
 also this means that the contents of each container are all filled with elements of equal size max(xs) except one that has an extra item of size max(xs)-1
-no other distribution of items can pack k containers worse for the same size sum(xs) if max(xs)<sum(xs)/k
-and the relation is sum(xs)<=k*max(xs)+max(xs)-1 -> max(xs)>=(sum(xs)+1)/(k+1)
+no other distribution of items can pack k containers worse for the same size sum(xs) if `max(xs)<sum(xs)/k`
+and the relation is `sum(xs)` <= `k * max(xs)+max(xs)-1` -> `max(xs)` >= `(sum(xs)+1)/(k+1)`
 
-so when sum(xs)/k > max(xs) >= (sum(xs)+1)/(k+1) then we know that max(xs) < P < 2*max(xs)
+so when `sum(xs)/k` > `max(xs)` >= `(sum(xs)+1)/(k+1)` then we know that `max(xs)` <= `P` <= `2 * max(xs) -1`
 
-can't remember how I squashed the upper bound even lower 
+can't remember how I squashed the upper bound even lower to `max(xs)` <= `P` <= `max(xs)+min(sum(xs)/k, max(xs)-1)`
 
 invariants that always hold:
 * max(xs) >= sum(xs)/len(xs)
