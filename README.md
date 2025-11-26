@@ -37,7 +37,7 @@
     * if `k <= len(xs)` then just return `max(xs)`
     * if we try a partition size `a` and the largest partition is `b`, but it's still too big,
       then exclude from `b`, not from `a`
-    *
+    * if the partition has only one option based on the `lo` and `hi` then skip search 
 
 ## why it works
 
