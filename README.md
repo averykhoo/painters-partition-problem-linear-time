@@ -72,9 +72,12 @@ okay another invariant, this time we look at inefficient packing where max(xs) i
 this means that the most space we can "waste" is `(max(xs)-1) * (k-1)`, since we assume at least k containers are needed and at least one is full
 also this means that the contents of each container are all filled with elements of equal size max(xs) except one that has an extra item of size max(xs)-1
 no other distribution of items can pack k containers worse for the same size sum(xs) if `max(xs)<sum(xs)/k`
-and the relation is `sum(xs)` <= `k * max(xs)+max(xs)-1` -> `max(xs)` >= `(sum(xs)+1)/(k+1)`
+in this case we have some multiple of items of size max(xs) in each bucket, where one bucket has one additional item
+if we subtract that item, then all buckets are now optimally packed, so we know that means `P <= (sum(xs)-(max(xs)-1))/k + max(xs)-1`
 
-so when `sum(xs)/k` > `max(xs)` >= `(sum(xs)+1)/(k+1)` then we know that `max(xs)` <= `P` <= `2 * max(xs) -1`
+~~and the relation is `sum(xs)` <= `k * max(xs)+max(xs)-1` -> `max(xs)` >= `(sum(xs)+1)/(k+1)`~~ this is probably wrong
+
+~~so when `sum(xs)/k` > `max(xs)` >= `(sum(xs)+1)/(k+1)` then we know that `max(xs)` <= `P` <= `2 * max(xs) -1`~~ maybe also wrong 
 
 can't remember how I squashed the upper bound even lower to `max(xs)` <= `P` <= `max(xs)+min(sum(xs)/k, max(xs)-1)`
 
