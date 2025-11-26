@@ -78,6 +78,17 @@ so when sum(xs)/k > max(xs) >= (sum(xs)+1)/(k+1) then we know that max(xs) < P <
 
 can't remember how I squashed the upper bound even lower 
 
+invariants that always hold:
+* max(xs) >= sum(xs)/len(xs)
+* len(xs) >= k (otherwise the solution is trivial)
+* P >= sum(xs)/k
+* P < sum(xs)
+
+
+
+
+
+okay this is the bit I'm unsure of:
 
 * if `max(xs)` < `math.ceil(sum(xs) / k)`, then:
     * `min_partition = math.ceil(sum(xs) / k)` and
