@@ -107,3 +107,6 @@
 # TODO
 
 * make the math more precise
+* `max_partition` is also upper bounded as the shortest contiguous length of boards `n - k + 1`
+* if we keep a running (linked) list of which partitions to check, then we can occasionally reduce the previously minimum factor of k steps per round, which in theory cuts down on the overall runtime but I'm not sure how to math it
+* something about the pigeonhole principle should help prove better runtime when k approaches n since the number of searches has to shrink
