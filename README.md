@@ -130,13 +130,15 @@ alternative derivation: `P*k` = total allocated paint = used paint + max waste =
 * `max(xs) ~= sum(xs) / k`
 * `max(xs) / mean(xs) ~= len(xs) / k`
 
-* overall i think the complexity is `O(len(xs)) + O(k * log(len(xs)/k) * log(sum(xs)/k))`
+* overall i think the complexity is `O(len(xs)) + O((k-1) * log(len(xs)/k) * log(sum(xs)/k))`
   * can't figure out how to remove the dependency on the sum of items in xs
   * e.g. if all the items are random uint64s, then even if the list has length 10, the `log(mean(xs))` term dominates
   * at least it's certain that this is less than `O(sum(xs))`
   * i suppose it's kind of fair to say this is linear in terms of the length of the list in binary
   * and *technically* even reading the list from memory does that this much complexity so we're not much worse off
   * the last term is more accurately `log(min(ceil(sum(xs)/k), max(xs)))` which comes from the range of `P`
+  * note that as k->len(xs), log(len(xs)/k)->0, which might be accurate if we correctly use the linked list to drop
+    partition boundaries that are already known
 
 ### specifically for `P <= ceil(sum(xs)/k) + max(xs)`
 
