@@ -8,17 +8,18 @@
           pre-pre-processing step, since it might still be a trivial case), then restore them in a post-processing step
     * `if k <= 0: raise ValueError`
 2. trivial/edge cases (simple `O(n)` solutions)
-    * `if len(xs) == 0: return 0`
-    * `if len(xs) <= k: return max(xs)`
+    * `if len(xs) == 0: return 0` (painters are allowed to do no work - alternatively just add a dummy 0 to xs)
+    * `if 1 <= len(xs) <= k: return max(xs)` (alternatively pad with dummy 0 items)
     * `if k == 1: return sum(xs)`
     * `if k == 2:` fairly trivial `O(n)` "meet-in-the middle" algorithm, just start from both ends
     * `if k == 3:` first calculate `sum(xs)` then reuse the `k==2` code but with a middle segment
     * `if k == len(xs) + 1:` merge the two smallest neighboring elements, then return the new `max(xs)`
-        * with recursion and some clever indexing, this should be an `O(len(xs) * log(len(xs)))` general solution
+        * with recursion and clever indexing, this would be at best a `O(len(xs) * log(len(xs)))` general solution
 3. pre-processing (`O(n)`)
     * cumulative sum (and total sum, but that's just the last element)
+      * also note that a range sum is just one elem minus the other
     * find max
-    * build lookup tables for ranges of `min_partition` and `max_partition`
+    * calculate `min_partition` and `max_partition`
         * optional optimization: do a quick test to see whether `min_partition` works
         * only requires a couple extra vars in the loop
 4. binary search within binary search (`O(k * log(sum(xs)) * log(len(xs)))`)
@@ -46,7 +47,15 @@ we can also partition using max partition from both sides (maybe max minus one f
 
 ## why it works
 
-TODO: check the math in this section again now that i've forgotten how it was derived
+### invariants that always hold:
+* `max(xs) >= sum(xs)/len(xs)` (otherwise the solution is trivial)
+* `sum(xs) > len(xs)` (otherwise the solution is trivial)
+* `len(xs) >= k` (otherwise the solution is trivial)
+* `P >= sum(xs)/k`
+* `P >= max(xs)`
+* `P < sum(xs)`
+
+### invariant when `P == max(xs)`
 
 consider how *empty* the partitions can possibly be if every painter is allocated at least 1 for some optimal partition size P and number of workers k
 for some optimal partitioning P, there must be at least one slot full, i.e. there exists at least one painter allocated P area
@@ -55,7 +64,7 @@ if the rest are allocated P and 1 alternately, the total work done is (for an od
 or for even k `(k/2)(P+1) = 0.5(kP + k)`
 this defines the largest k needed to hold a total partition size - no matter the length of xs, if we sub in max(xs) and k, if we know that sum(xs) is <= to the sum then we know the answer is just max(xs)
 
-now knowing that P = max(xs) we can find the relation that `sum(xs)<=0.5(k(max(xs))+k)` if k is even or `sum(xs)<=0.5(k(max(xs))+k+1-max(xs))` if k is odd - if either of these hold then the answer is just max(xs)
+now knowing that P = max(xs) we can find the relation that `sum(xs)<=0.5(k*max(xs)+k)` if k is even or `sum(xs)<=0.5(k*max(xs)+k+1-max(xs))` if k is odd - if either of these hold then the answer is just max(xs)
 
 maybe the concept should be called "inefficient packing" since we are packing the list xs into k containers of equal size, but we're adversarially designing xs to pack as poorly as possible
 
@@ -67,29 +76,19 @@ one set of invariants is where the ideal partition size P is equal to the max el
 * any time k >= len(xs) this is true
 * above we derived a formula that relates the rest of xs to a largest k, no matter what the distribution or count of elements are
 
-okay another invariant, this time we look at inefficient packing where max(xs) is pretty small, so it's less than P
+hence we can return immediately when `max(xs) >= (2*sum(xs)/k) - 1` (if k is even) or `max(xs) >= (2*(sum(xs)-1)/(k-1)) - 1` (if k is odd)
+of to be lazy and knowing that `max(xs)>k` we can just always use the even invariant and not check evenness
 
+### invariant when `P > max(xs)`
+
+okay another invariant, this time we look at inefficient packing where max(xs) is less than P
+this case is only possible when `max(xs)<sum(xs)/k`
 this means that the most space we can "waste" is `(max(xs)-1) * (k-1)`, since we assume at least k containers are needed and at least one is full
-also this means that the contents of each container are all filled with elements of equal size max(xs) except one that has an extra item of size max(xs)-1
-no other distribution of items can pack k containers worse for the same size sum(xs) if `max(xs)<sum(xs)/k`
-in this case we have some multiple of items of size max(xs) in each bucket, where one bucket has one additional item
-if we subtract that item, then all buckets are now optimally packed, so we know that means `P <= (sum(xs)-(max(xs)-1))/k + max(xs)-1` -> `P<=sum(xs)/k + (max(xs)-1) * (k-1)/k`
-
-~~and the relation is `sum(xs)` <= `k * max(xs)+max(xs)-1` -> `max(xs)` >= `(sum(xs)+1)/(k+1)`~~ this is wrong
-
-so when `sum(xs)/k` > `max(xs)` >= `(sum(xs)+1)/(k+1)` then we know that ~~`max(xs)` <= `P` <= `2 * max(xs) -1`~~ also wrong 
-
-the upper bound probably got simplified to find `max(xs)` <= `P` <= `max(xs)+sum(xs)/k` since removing the other terms keeps the invariant 
-
-invariants that always hold:
-* `max(xs) >= sum(xs)/len(xs)`
-* `len(xs) >= k` (otherwise the solution is trivial)
-* `P >= sum(xs)/k`
-* `P >= max(xs)`
-* `P < sum(xs)`
-
-
-
+also this means that the contents of each container are all filled with elements of equal size `max(xs)` except one that has an extra item of size max(xs)-1
+in this case we have some multiple of items of size `max(xs)` in each bucket, but the full bucket has one additional item `max(xs)-1`
+if we subtract that item, then all buckets are now optimally packed, so we know that means `P - (max(xs)-1) = (sum(xs)-(max(xs)-1))/k`
+so when `sum(xs)/k` > `max(xs)` then we know that `P<=sum(xs)/k + (max(xs)-1) * (k-1)/k`
+the upper bound probably got simplified to find `P` <= `max(xs)+sum(xs)/k` since removing the other terms keeps the invariant 
 
 
 okay this is the bit I'm unsure of:
@@ -101,8 +100,9 @@ okay this is the bit I'm unsure of:
     * `min_partition = max(xs)` and
     * `max_partition = 2 * math.ceil((sum(xs) - 1) / (k - 1))`
 * if `max(xs)` >= `2 * math.ceil((sum(xs) - 1) / (k - 1))`, then:
-    * `min_partition = max_partition = math.ceil(sum(xs) / k)`. ~~<-- this seems wrong, should probably be max(xs) - also there will be even and odd variants~~
-    * this seems to come from a packing where all containers are fulle xcept the last on where there is exactly one item - i.e. this is the worst possible packing where all elements are size 1
+    * `min_partition = max_partition = math.ceil(sum(xs) / k)`.
+      * this seems to come from a packing where all containers are full except the last, where there is exactly one item 
+      * i.e. this is the worst possible packing where all elements are size 1
 
 * slightly more exact boundary conditions:
     * `min_partition` >= `math.ceil(sum(xs) / k)`
