@@ -13,7 +13,7 @@
        * `if k == 1: return sum(xs)`
        * `if k == 2:` fairly trivial `O(n)` "meet-in-the middle" algorithm, just start from both ends
        * `if k == 3:` first calculate `sum(xs)` then reuse the `k==2` code but with a middle segment
-       * `if k == len(xs) + 1:` merge the two smallest neighboring elements, then return the new `max(xs)`
+       * `if k == len(xs) - 1:` merge the two smallest neighboring elements, then return the new `max(xs)`
            * with recursion and clever indexing, this would be at best a `O(len(xs) * log(len(xs)))` general solution
    3. pre-processing (`O(n)`)
        * cumulative sum (and total sum, but that's just the last element)
@@ -45,16 +45,32 @@
 
 we can also partition using max partition from both sides (maybe max minus one from the other side) and then take the strictest bounds we find over the 4 runs - this probably won't be as helpful but I'm not sure how to quantify the uselessness of it
 
-## why it works
+## why it works - derivations
+
+notation:
+
+* `xs` is a list of paintings, from `x₀` to `xₙ₋₁` (or `xs[0]` to `xs[-1] == xs[n-1]` for ascii compat)
+* `n` is `len(xs)`, and `S` is `sum(xs)`
+* `k` is the number of partitions (or painters)
+* `p` is a partition size, `p̂` (or `P` for ascii compat) is correct optimal partition size
+* `log` is base 2
 
 ### invariants that always hold
 
-> * `max(xs) >= sum(xs)/len(xs)` (otherwise the solution is trivial)
-> * `sum(xs) > len(xs)` (otherwise the solution is trivial)
-> * `len(xs) >= k` (otherwise the solution is trivial)
-> * `P >= sum(xs)/k`
+in general, after filtering out the trivial cases:
+
+> * `sum(xs) > len(xs) > k > 1` (implies that `max(xs) >= 2`)
+> * `2*sum(xs)/k - 1 > max(xs) >= sum(xs)/len(xs) > min(xs) >= 1`
+
+about the correct partition P:
+
+> * `P >= ceil(sum(xs)/k)`
 > * `P >= max(xs)`
 > * `P <= sum(xs)`
+> * `P <= ceil(sum(xs)/k) + max(xs)` (derived later)
+> * `P <= max(max(xs), min(sum(x[i:i+len(xs)-k+1]) for i in range(k)))` (this is O(k) if we use the cumsum approach)
+
+this all implies that the allowed range of `P` is of size at most `min(ceil(sum(xs)/k), max(xs))`
 
 ### invariant when `P == max(xs)`
 
@@ -81,14 +97,13 @@ we could be lazy and knowing that `max(xs)>k` we can just not check evenness and
 but also it's a tighter bound to truncate the first or last element along with one painter and call it an even length
 we can safely drop one item and know we have a non-zero number because if k==1 or len(xs)==1 the answer was alr trivial
 
-> if `max(xs) >= (2*sum(xs)/k) - 1`
-> or if (`k%2==1` and `max(xs) >= (2*(sum(xs)-max(xs[0], xs[-1]))/(k-1)) - 1`)
-> or if `k >= len(xs) >= 1`
+> if `max(xs) * k >= 2*sum(xs) - k`
+> or if (`k%2==1` and `max(xs) * (k-1) >= 2*(sum(xs)-max(xs[0], xs[-1])) - k + 1`
+> or if `k >= len(xs)`
 > then return `P=max(xs)`
 
-### invariant when `P > max(xs)`
+### invariant when `max(xs) < ceil(sum(xs)/k)`
 
-okay another invariant, this time `min(xs) < max(xs)` < `sum(xs)/k` <= `P`, i.e. on average each painter does more than `max(xs)`
 this means that the most space we can "waste" is `(max(xs)-1) * (k-1)`, since we assume at least k containers are needed and at least one is full
 also this means that the contents of each container are all filled with elements of equal size `max(xs)` except one that has some extra items of total size max(xs)-1
 in this case we can have a multiple of items of size `max(xs)` in each bucket, but the full bucket has one additional item `max(xs)-1`
@@ -98,9 +113,9 @@ so when `sum(xs)/k` > `max(xs)` then we know that `P<=sum(xs)/k + (max(xs)-1) * 
 the upper bound probably got simplified to find `P` <= `max(xs)+sum(xs)/k` since removing the other terms keeps the invariant 
 this simplification also helps it hold true when `min(xs) == max(xs)`
 
-alternative derivation: `P*k` = total allocated paint = used paint + waste = `sum(xs)` + `(max(xs)-1)*(k-1)`
+alternative derivation: `P*k` = total allocated paint = used paint + max waste = `sum(xs)` + `(max(xs)-1)*(k-1)`
 
-> if `max(xs) < sum(xs)/k)`
+> if `max(xs) * k < sum(xs)`
 > then `P<=ceil(sum(xs)/k + (max(xs)-1) * (k-1)/k)`
 
 ### worst case conditions (todo, POSSIBLY WRONG):
@@ -108,14 +123,27 @@ alternative derivation: `P*k` = total allocated paint = used paint + waste = `su
 * `max(xs) ~= sum(xs) / k`
 * `max(xs) / mean(xs) ~= len(xs) / k`
 
-[//]: # (TODO: can't remember why the last term here is sum<xs>/k <-- used <> since brackets cant be used in a comment)
-
 * overall i think the complexity is `O(len(xs)) + O(k * log(len(xs)/k) * log(sum(xs)/k))`
   * can't figure out how to remove the dependency on the sum of items in xs
   * e.g. if all the items are random uint64s, then even if the list has length 10, the `log(mean(xs))` term dominates
   * at least it's certain that this is less than `O(sum(xs))`
   * i suppose it's kind of fair to say this is linear in terms of the length of the list in binary
   * and *technically* even reading the list from memory does that this much complexity so we're not much worse off
+  * the last term is more accurately `log(min(ceil(sum(xs)/k), max(xs)))` which comes from the range of `P`
+
+### specifically for `P <= ceil(sum(xs)/k + max(xs))`
+
+suppose we allocate `p=ceil(sum(xs)/k + max(xs)`
+we allocate `k` painters at most `p` greedily from xs
+then we find out there is at least one task left
+we know that the total wasted space is less than `max(xs)` per painter, otherwise the next task could flow back to them
+hence the total wasted space must be <= `k * max(xs)`
+and the total sum is just `sum(xs)`
+hence `p * k < sum(xs) + k * max(xs)`
+but that implies `ceil(sum(xs)/k)` < `sum(xs)/k` which is just plain wrong
+hence we have proof by contradiction
+
+there must be a better proof but wtv
 
 ## fancy math
 
@@ -144,19 +172,12 @@ alternative derivation: `P*k` = total allocated paint = used paint + waste = `su
     * and hopefully also `< O(len(xs))` but i'll need to remove the `mean(xs)` (or `max(xs)`) factor somehow
     * which might be safe since if we use the same datatype for `x` and `len(xs)` then they're both kinda bounded?
         * but it feels like a cop-out to assume that `log(max(xs)) ~= constant` because of the data type
-* notation:
-    * `xs` is a list of paintings, from `x₀` to `xₙ₋₁` (or `xs[0]` to `xs[-1] == xs[n-1]` for ascii compat)
-        * `n` is `len(xs)`, and `N` is `sum(xs)`
-    * `k` is the number of partitions (or painters)
-    * `p` is partition size, `p̂` is optimal partition size (maybe `P` for better ascii compat?)
-    * `log` is base 2
-    *
 
+    
 # TODO
 
 * make the math more precise
-  * `max_partition` is also upper bounded as the shortest contiguous length of boards `len(xs) - k + 1`
-  * something about the pigeonhole principle should help prove better runtime when `k` approaches `len(xs)`,
-    since the possible range for each partition has to shrink proportionally to `len(xs) - k`
-    * like we can prove that runtime is strictly no worse than `(len(xs)-1)C(k-1) = (len(xs)-1)!/((k-1)!(len(xs)-k))!)`
-    * which should be further bounded by the range of values in `xs`
+* something about the pigeonhole principle should help prove better runtime when `k` approaches `len(xs)`,
+  since the possible range for each partition has to shrink proportionally to `len(xs) - k`
+  * like we can prove that runtime is strictly no worse than `(len(xs)-1)C(k-1) = (len(xs)-1)!/((k-1)!(len(xs)-k))!)`
+  * which should be further bounded by the range of values in `xs`
