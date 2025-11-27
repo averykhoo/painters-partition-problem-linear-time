@@ -54,7 +54,7 @@ we can also partition using max partition from both sides (maybe max minus one f
 > * `len(xs) >= k` (otherwise the solution is trivial)
 > * `P >= sum(xs)/k`
 > * `P >= max(xs)`
-> * `P < sum(xs)`
+> * `P <= sum(xs)`
 
 ### invariant when `P == max(xs)`
 
@@ -77,10 +77,12 @@ this defines the largest k needed to hold a total partition size - no matter the
 now knowing that `P = max(xs)` we can find the relation that `sum(xs)<=0.5(k*max(xs)+k)` if k is even or `sum(xs)<=0.5(k*max(xs)+k+1-max(xs))` if k is odd - if either of these hold then the answer is just max(xs)
 
 hence we can return immediately when `max(xs) >= (2*sum(xs)/k) - 1` (if k is even) or `max(xs) >= (2*(sum(xs)-1)/(k-1)) - 1` (if k is odd)
-of to be lazy and knowing that `max(xs)>k` we can just always use the even invariant and not check evenness
+we could be lazy and knowing that `max(xs)>k` we can just not check evenness and use the even check
+but also it's a tighter bound to truncate the first or last element along with one painter and call it an even length
+we can safely drop one item and know we have a non-zero number because if k==1 or len(xs)==1 the answer was alr trivial
 
-> if (`k%2==0` and `max(xs) >= (2*sum(xs)/k) - 1`)
-> or if (`k%2==1` and `max(xs) >= (2*(sum(xs)-1)/(k-1)) - 1`)
+> if `max(xs) >= (2*sum(xs)/k) - 1`
+> or if (`k%2==1` and `max(xs) >= (2*(sum(xs)-max(xs[0], xs[-1]))/(k-1)) - 1`)
 > or if `k >= len(xs) >= 1`
 > then return `P=max(xs)`
 
@@ -98,41 +100,22 @@ this simplification also helps it hold true when `min(xs) == max(xs)`
 
 alternative derivation: `P*k` = total allocated paint = used paint + waste = `sum(xs)` + `(max(xs)-1)*(k-1)`
 
-> if `max(xs) < ceil(sum(xs)/k))`
+> if `max(xs) < sum(xs)/k)`
 > then `P<=ceil(sum(xs)/k + (max(xs)-1) * (k-1)/k)`
 
-okay this is the bit I'm unsure of:
+### worst case conditions (todo, POSSIBLY WRONG):
 
-* if `max(xs)` < `math.ceil(sum(xs) / k)`, then `P <= math.ceil(sum(xs) / k) + max(xs)`
-* if `math.ceil(sum(xs) / k)` < `max(xs)` < `2 * math.ceil((sum(xs) - 1) / (k - 1))`, then:
-    * `P <= 2 * math.ceil((sum(xs) - 1) / (k - 1))`
-* if `max(xs)` >= `2 * math.ceil((sum(xs) - 1) / (k - 1))`, then:
-  * P=ma
-* if `max(xs)` >= `2 * math.ceil((sum(xs) - 1) / (k - 1))`, then:
-  * `P = math.ceil(sum(xs) / k)`.
-    * this seems to come from a packing where all containers are full except the last, where there is exactly one item 
-    * i.e. this is the worst possible packing where all elements are size 1
+* `max(xs) ~= sum(xs) / k`
+* `max(xs) / mean(xs) ~= len(xs) / k`
 
-* slightly more exact boundary conditions:
-  * `min_partition` >= `math.ceil(sum(xs) / k)`
-  * `min_partition` >= `max(xs)`
-  * `max_partition` <= `math.ceil((sum(xs) - max(x)) / k) + max(xs)`
-  * `max_partition` <= `math.ceil(sum(xs) / k) + max(xs) - 1`
-  * if `len(xs)` is even, `max_partition` <= `2 * math.ceil(sum(xs) / k) - 1`
-  * if `len(xs)` is odd, `max_partition` <= `2 * math.ceil((sum(xs) - max(xs[0], xs[-1])) / (k - 1)) - 1`
-    * `max(xs[0], xs[-1])` replacing `1` was because one subtraction is when the first or last element is removed along with the first/last painter to make it even
-    * we assume `k>1` otherwise we would just return `sum(xs)`
-  * `max_partition` <= `2 * math.ceil((sum(xs) - min(xs[0], xs[-1])) / (k - 1)) - 1`
-  * `max_partition` >= `max(xs)`
-
-* worst case conditions (todo):
-  * `max(xs) ~= sum(xs) / k`
-  * `max(xs) / mean(xs) ~= len(xs) / k`
+[//]: # (TODO: can't remember why the last term here is sum<xs>/k <-- used <> since brackets cant be used in a comment)
 
 * overall i think the complexity is `O(len(xs)) + O(k * log(len(xs)/k) * log(sum(xs)/k))`
   * can't figure out how to remove the dependency on the sum of items in xs
   * e.g. if all the items are random uint64s, then even if the list has length 10, the `log(mean(xs))` term dominates
   * at least it's certain that this is less than `O(sum(xs))`
+  * i suppose it's kind of fair to say this is linear in terms of the length of the list in binary
+  * and *technically* even reading the list from memory does that this much complexity so we're not much worse off
 
 ## fancy math
 
