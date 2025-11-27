@@ -7,40 +7,46 @@
         * technically, `x==0` is solvable: filter these values out, keeping track of their original locations (in a
           pre-pre-processing step, since it might still be a trivial case), then restore them in a post-processing step
     * `if k <= 0: raise ValueError`
-   2. trivial/edge cases (simple `O(n)` solutions)
-       * `if len(xs) == 0: return 0` (painters are allowed to do no work - alternatively just add a dummy 0 to xs)
-       * `if 1 <= len(xs) <= k: return max(xs)` (alternatively pad with dummy 0 items)
-       * `if k == 1: return sum(xs)`
-       * `if k == 2:` fairly trivial `O(n)` "meet-in-the middle" algorithm, just start from both ends
-       * `if k == 3:` first calculate `sum(xs)` then reuse the `k==2` code but with a middle segment
-       * `if k == len(xs) - 1:` merge the two smallest neighboring elements, then return the new `max(xs)`
-           * with recursion and clever indexing, this would be at best a `O(len(xs) * log(len(xs)))` general solution
-   3. pre-processing (`O(n)`)
-       * cumulative sum (and total sum, but that's just the last element)
-         * also note that a range sum is just one elem minus the other
-       * find max
-       * calculate `min_partition` and `max_partition`
-           * optional optimization: do a quick test to see whether `min_partition` works
-           * only requires a couple extra vars in the loop
-   4. binary search within binary search (`O(k * log(sum(xs)) * log(len(xs)))`)
-       * `pointer = 0`
-       * binary search with `lo = min_partition` and `hi = max_partition`
-           * `for partition_idx in range(k):`
-               * binary search using `lo = min_partition_lookup[pointer]` and `hi = max_partition_lookup[pointer]`
-               * `if new_pointer >= len(xs):` depends if we're at the last partition
-   5. optional optimizations for lower amortized time
-       * pre-build `lo,hi` ranges by partitioning using `min_partition + 1` from the opposite end
-           * and `min_partition` from the normal end
-           * if this reaches the end then we can exit early
-       * update ranges on-the-fly at each outer binary search run
-       * exit the inner loop early if we hit any `hi`, since the partition automatically succeeds
-           * or falls below `lo`, since the partition fails
-       * if `k <= len(xs)` then just return `max(xs)`
-       * if we try a partition size `a` and the largest partition is `b`, but it's still too big,
-         then exclude from `b`, not from `a`
-       * keep a (linked) list of which partitions are still defined as ranges, removing any that become strictly defined,
-         which helps reduce the strictly O(K * log(whatever)) per iteration to something potentially less than K
-           * but i'm not sure how to math the runtime
+2. trivial/edge cases (simple mostly `O(1)` solutions)
+    * `if len(xs) == 0: return 0` (painters are allowed to do no work - alternatively just add a dummy 0 to xs)
+    * `if 1 <= len(xs) <= k: return max(xs)` (alternatively pad with dummy 0 items)
+    * `if k == 1: return sum(xs)`
+    * ~~`if k == 2: return min(max(s,t-s) for s,t in [(0,sum(xs))] for x in xs for s in [s+x])` (golfed but o(n))~~
+    * ~~`if k == 2:` fairly trivial `O(n)` "meet-in-the middle" algorithm, just start from both ends~~ (skip)
+    * ~~`if k == 3:` first calculate `sum(xs)` then reuse the `k==2` code but with a middle segment~~ (skip)
+    * ~~`if k == len(xs) - 1:` merge the two smallest neighboring elements, then return the new `max(xs)`~~ (skip)
+        * ~~with recursion and clever indexing, this is at best a `O(len(xs) * log(len(xs)))` general solution~~ (skip)
+3. pre-processing (`O(n)`)
+    * cumulative sum `cumsum:=[s for s in [0] for x in xs for s in [s+x]]` or use `itertools.accumulate`
+      * and total sum, but that's just the last element
+      * also note that a range sum is just one elem minus the other
+    * also find the max
+    * calculate `min_partition` and `max_partition` (i.e., the range of `P`, derived below)
+
+    * another chance to early exit:
+      * cases where `P=max(xs)`
+      * `if k == 2: return min(max(s,t-s) for t in [sum(xs)] for s in cumsum)`
+
+4. binary search within binary search (`O(k * log(sum(xs)) * log(len(xs)))`)
+    * `pointer = 0`
+    * binary search with `lo = min_partition` and `hi = max_partition`
+        * `for partition_idx in range(k):`
+            * binary search using `lo = min_partition_lookup[pointer]` and `hi = max_partition_lookup[pointer]`
+            * `if new_pointer >= len(xs):` depends if we're at the last partition
+5. optional optimizations for lower amortized time
+    * pre-build `lo,hi` ranges by partitioning using `min_partition` and `min_partition + 1` from opposite ends
+        * if either of these reaches the end, then we can exit early
+        * improve the bounds using `max_partition` and `max_partition-1` from opposite ends
+    * update ranges on-the-fly at each outer binary search run
+    * maybe exit the inner loop early if we hit any `hi`, since the partition automatically "succeeds" (all items allocated)
+        * or falls below `lo`, since the partition "fails" (excess items)
+    * if `k <= len(xs)` then just return `max(xs)`
+    * if we try a partition size `a` and the largest partition is `b`, but it's still too big,
+      then exclude from `b`, not from `a`
+    * keep a (linked) list of which partitions are still defined as ranges, removing any that become strictly defined,
+      which helps reduce the strictly O(K * log(whatever)) per iteration to something potentially less than K
+        * but i'm not sure how to math the runtime
+        * i guess it should actually be o((k-1) * whatever)
 
 
 we can also partition using max partition from both sides (maybe max minus one from the other side) and then take the strictest bounds we find over the 4 runs - this probably won't be as helpful but I'm not sure how to quantify the uselessness of it
@@ -59,13 +65,14 @@ notation:
 
 in general, after filtering out the trivial cases:
 
-> * `sum(xs) > len(xs) > k > 1` (implies that `max(xs) >= 2`)
-> * `2*sum(xs)/k - 1 > max(xs) >= sum(xs)/len(xs) > min(xs) >= 1`
+> * `1 < k < len(xs) < sum(xs)` (implies that `max(xs) >= 2`)
+> * `1 <= min(xs) < sum(xs)/len(xs) <= max(xs) < 2*sum(xs)/k - 1`
 
 about the correct partition P:
 
 > * `P >= ceil(sum(xs)/k)`
 > * `P >= max(xs)`
+> * `P >= min(sum(x[i:i+1]) for i in range(len(xs)-1))` (since k>=2) (this is O(n) if we use the cumsum approach)
 > * `P <= sum(xs)`
 > * `P <= ceil(sum(xs)/k) + max(xs)` (derived later)
 > * `P <= max(max(xs), min(sum(x[i:i+len(xs)-k+1]) for i in range(k)))` (this is O(k) if we use the cumsum approach)
@@ -131,7 +138,7 @@ alternative derivation: `P*k` = total allocated paint = used paint + max waste =
   * and *technically* even reading the list from memory does that this much complexity so we're not much worse off
   * the last term is more accurately `log(min(ceil(sum(xs)/k), max(xs)))` which comes from the range of `P`
 
-### specifically for `P <= ceil(sum(xs)/k + max(xs))`
+### specifically for `P <= ceil(sum(xs)/k) + max(xs)`
 
 suppose we allocate `p=ceil(sum(xs)/k + max(xs)`
 we allocate `k` painters at most `p` greedily from xs
@@ -142,6 +149,7 @@ and the total sum is just `sum(xs)`
 hence `p * k < sum(xs) + k * max(xs)`
 but that implies `ceil(sum(xs)/k)` < `sum(xs)/k` which is just plain wrong
 hence we have proof by contradiction
+so we know p <= the thing
 
 there must be a better proof but wtv
 
