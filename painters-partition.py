@@ -1,3 +1,4 @@
+import itertools
 import math
 from dataclasses import dataclass
 from dataclasses import field
@@ -46,9 +47,9 @@ class PaintersPartition:
     _max_partition_reverse_jump_table: list[int] = field(init=False, default_factory=list)
 
     # (optional optimization)
-    # lists of length (k-1)
-    # the 1st partition always starts at the start of the list
-    # the k-th partition always ends at the end of the list
+    # lists of length (k+1) for the bounds of all endpoints for all partitions
+    # the 1st partition always starts at the start of the list, so both lists always start with 0
+    # the k-th partition always ends at the end of the list, so both lists always end with len(xs)
     # or maybe make it length k and just set the last elem to len(xs) to make the code easier to write
     _partition_boundary_lo: list[int] = field(init=False, default_factory=list)
     _partition_boundary_hi: list[int] = field(init=False, default_factory=list)
@@ -71,6 +72,16 @@ class PaintersPartition:
             self._sum_xs += x
             self._cumulative_sum.append(self._sum_xs)
             xs_without_zeroes.append(x)
+
+        # sanity check, not part of algorithm
+        assert self._min_xs == min(self.xs)
+        assert self._max_xs == max(self.xs)
+        assert self._sum_xs == sum(self.xs)
+        assert self._cumulative_sum == list(itertools.accumulate(self.xs))
+        assert xs_without_zeroes == [x for x in self.xs if x]
+        assert len(self._zero_indices) == len(self.xs) - len(xs_without_zeroes)
+
+        # reassign self.xs
         self.xs = xs_without_zeroes
 
         # early exit if the list was empty
@@ -86,11 +97,12 @@ class PaintersPartition:
             self._max_xs,
             int(math.ceil(self._sum_xs / self.k)),
         )
+        assert self._min_partition_size > 0
         self._max_partition_size = min(
             self._sum_xs,
             int(math.ceil(self._sum_xs / self.k)) + self._max_xs,
         )
-        assert 0 < self._max_xs <= self._min_partition_size <= self._max_partition_size <= self._sum_xs
+        assert self._max_partition_size >= self._min_partition_size
 
         # 2nd O(N) pass: precompute jump tables
         pointer_min_left = 0
@@ -106,22 +118,56 @@ class PaintersPartition:
             self._max_partition_reverse_jump_table.append(pointer_max_left)
 
         # there's no further to jump, so just jump to the end
-        assert len(self._min_partition_jump_table) == pointer_min_left
-        assert len(self._max_partition_jump_table) == pointer_max_left
+        # assert len(self._min_partition_jump_table) == pointer_min_left
+        # assert len(self._max_partition_jump_table) == pointer_max_left
         self._min_partition_jump_table.extend([len(self.xs) - 1] * (len(self.xs) - pointer_min_left))
         self._max_partition_jump_table.extend([len(self.xs) - 1] * (len(self.xs) - pointer_max_left))
 
-        # 3rd O(N) pass: build partition boundary lookup tables
+        # sanity check the length
+        assert len(self._min_partition_jump_table) == len(self.xs)
+        assert len(self._max_partition_jump_table) == len(self.xs)
+        assert len(self._min_partition_reverse_jump_table) == len(self.xs)
+        assert len(self._max_partition_reverse_jump_table) == len(self.xs)
+
+        # sanity check the endpoints, which should point to themselves
+        assert self._min_partition_jump_table[-1] == len(self.xs) - 1
+        assert self._max_partition_jump_table[-1] == len(self.xs) - 1
+        assert self._min_partition_reverse_jump_table[0] == 0
+        assert self._max_partition_reverse_jump_table[0] == 0
+
+        # 3rd O(K) pass: build partition boundary lookup tables
         # this could totally have been merged into the above loop but is separate for improved readability
+        self._partition_boundary_lo.append(0)  # the first partition always starts at 0
+        self._partition_boundary_hi.append(0)
         pointer_min_left = 0
         pointer_max_left = 0
-        for i in range(self.k - 1):
-            if self._cumulative_sum[i] - self._cumulative_sum[pointer_min_left] > self._min_partition_size:
-                self._partition_boundary_lo.append(i - 1)
-                pointer_max_left = i
-            if self._cumulative_sum[i] - self._cumulative_sum[pointer_max_left] > self._max_partition_size:
-                self._partition_boundary_hi.append(i - 1)
-                pointer_max_left = i
+        for _ in range(self.k):
+            pointer_min_left = self._min_partition_jump_table[pointer_min_left]
+            self._partition_boundary_lo.append(pointer_min_left)
+            pointer_max_left = self._max_partition_jump_table[pointer_max_left]
+            self._partition_boundary_hi.append(pointer_max_left)
+        self._partition_boundary_lo[-1] = len(self.xs) - 1  # the last partition always ends at the end
+
+        # sanity check the boundaries
+        assert len(self._partition_boundary_lo) == self.k + 1
+        assert len(self._partition_boundary_hi) == self.k + 1
+        assert self._partition_boundary_lo[0] == 0
+        assert self._partition_boundary_hi[0] == 0
+        assert self._partition_boundary_lo[-1] == len(self.xs) - 1
+        assert self._partition_boundary_hi[-1] == len(self.xs) - 1  # this must have reached the end
+        assert all((hi >= lo) for hi, lo in zip(self._partition_boundary_hi, self._partition_boundary_lo))
+
+        # 4th O(N) pass: tighten partition bounds by looking in reverse
+        # this could totally have been merged into the above loop but is separate for improved readability
+        pointer_min_right = len(self.xs) - 1
+        pointer_max_right = len(self.xs) - 1
+        for _k in range(self.k - 1, 0, -1):
+            pointer_min_right = self._min_partition_reverse_jump_table[pointer_min_right]
+            self._partition_boundary_hi[_k] = min(self._partition_boundary_hi[_k], pointer_min_right)
+            pointer_max_right = self._max_partition_reverse_jump_table[pointer_max_right]
+            self._partition_boundary_lo[_k] = max(self._partition_boundary_lo[_k], pointer_max_right)
+        assert self._max_partition_reverse_jump_table[pointer_max_right] == 0  # this must reach 0 by next step
+        assert all((hi >= lo) for hi, lo in zip(self._partition_boundary_hi, self._partition_boundary_lo))
 
     def range_sum(self, start: int, end: int) -> int:
         # o(1) using cumulative_sum
