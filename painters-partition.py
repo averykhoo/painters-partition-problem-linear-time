@@ -195,6 +195,11 @@ class PaintersPartitionSolver:
         # print(f'{self._partition_boundary_lo=}')
         # print(f'{self._partition_boundary_hi=}')
 
+
+        # TODO: linked list of which partitions need to be checked (i.e. which boundaries are ambiguous)
+        # maybe use a dict of int->int as pointers, and it probably needs to be doubly linked
+        # can probably safely ignore the GC and just not remove old nodes
+
     def range_sum(self, start: int, end: int) -> int:
         # O(1) lookup via cumulative sum
         # includes start and end
