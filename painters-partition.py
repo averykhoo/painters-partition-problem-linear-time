@@ -9,23 +9,9 @@ class PaintersPartition:
     xs: list[int]  # list of paintings
     k: int  # number of painters / partitions
 
-    # @cached_property
-    # def cumulative_sum(self) -> list[int]:
-    #     # o(n) preprocessing
-    #     return [s for s in [0] for x in self.xs for s in [s + x]]
-    # @cached_property
-    # def max_xs(self) -> int:
-    #     # o(n) preprocessing
-    #     return max(self.xs)
-    # @cached_property
-    # def sum_xs(self) -> int:
-    #     # o(1) by using cumulative_sum
-    #     return self.cumulative_sum[-1]
-
     # various properties of xs, cached after being computed once
     _min_xs: int = field(init=False, default=0)
     _max_xs: int = field(init=False, default=0)
-    _len_xs: int = field(init=False, default=0)
     _sum_xs: int = field(init=False, default=0)
 
     # the cumulative sum of xs, has the same length as xs
