@@ -1,5 +1,10 @@
 # linear time algorithm for the painter's partition problem
 
+a totally unnecessary `O(N)` solution to the painters partition problem
+
+it achieves speedups compared to the usual `O(N*log(S))` solution when the array `xs` is super huge
+(and currently, when `k` is not huge, but that's because of unimplemented optimizations)
+
 ## how it works
 
 1. error handling
