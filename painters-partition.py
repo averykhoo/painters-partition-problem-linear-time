@@ -45,6 +45,11 @@ class PaintersPartitionSolver:
     _zero_indices: list[int] = field(init=False, default_factory=list)
 
     def __post_init__(self):
+        """
+        precompute the cumulative sum, max, and len
+        (total sum is the last elem of cumulative sum)
+        overall O(N) runtime if k < N
+        """
         xs_without_zeroes = []  # xs without any zeroes
 
         # 1st O(N) pass: loop to precompute all the properties of xs
@@ -92,6 +97,8 @@ class PaintersPartitionSolver:
             int(math.ceil(self._sum_xs / self.k)) + self._max_xs,
         )
         assert self._max_partition_size >= self._min_partition_size
+        # print(f'{self._min_partition_size=}')
+        # print(f'{self._max_partition_size=}')
 
         # 2nd O(N) pass: precompute jump tables
         pointer_min_left = 0
@@ -111,12 +118,16 @@ class PaintersPartitionSolver:
         assert len(self._max_partition_jump_table) == pointer_max_left
         self._min_partition_jump_table.extend([len(self.xs) - 1] * (len(self.xs) - pointer_min_left))
         self._max_partition_jump_table.extend([len(self.xs) - 1] * (len(self.xs) - pointer_max_left))
+        # print(f'{self._min_partition_jump_table=}')
+        # print(f'{self._max_partition_jump_table=}')
 
         # sanity check the length
         assert len(self._min_partition_jump_table) == len(self.xs)
         assert len(self._max_partition_jump_table) == len(self.xs)
         assert len(self._min_partition_reverse_jump_table) == len(self.xs)
         assert len(self._max_partition_reverse_jump_table) == len(self.xs)
+        # print(f'{self._min_partition_reverse_jump_table=}')
+        # print(f'{self._max_partition_reverse_jump_table=}')
 
         # sanity check the endpoints, which should point to themselves
         assert self._min_partition_jump_table[-1] == len(self.xs) - 1
@@ -155,12 +166,19 @@ class PaintersPartitionSolver:
         assert self._partition_boundary_lo[-1] == len(self.xs) - 1
         assert self._partition_boundary_hi[-1] == len(self.xs) - 1  # this must have reached the end
         assert all((hi >= lo) for hi, lo in zip(self._partition_boundary_hi, self._partition_boundary_lo))
+        # print(f'{self._partition_boundary_lo=}')
+        # print(f'{self._partition_boundary_hi=}')
 
+        # TODO: this somehow creates incorrect bounds
         # 4th O(N) pass: tighten partition bounds by looking in reverse
         # this could totally have been merged into the above loop but is separate for improved readability
         pointer_min_right = len(self.xs) - 1
         pointer_max_right = len(self.xs) - 1
         for _k in range(self.k - 1, 0, -1):
+            assert self.range_sum(self._min_partition_reverse_jump_table[pointer_min_right], pointer_min_right
+                                  ) <= self._min_partition_size
+            assert self.range_sum(self._max_partition_reverse_jump_table[pointer_max_right], pointer_max_right
+                                  ) <= self._max_partition_size
             pointer_min_right = self._min_partition_reverse_jump_table[pointer_min_right]
             self._partition_boundary_hi[_k] = min(self._partition_boundary_hi[_k], pointer_min_right)
             if pointer_min_left > 0:
@@ -174,6 +192,8 @@ class PaintersPartitionSolver:
 
         assert self._max_partition_reverse_jump_table[pointer_max_right] == 0  # this must reach 0 by next step
         assert all((hi >= lo) for hi, lo in zip(self._partition_boundary_hi, self._partition_boundary_lo))
+        # print(f'{self._partition_boundary_lo=}')
+        # print(f'{self._partition_boundary_hi=}')
 
     def range_sum(self, start: int, end: int) -> int:
         # O(1) lookup via cumulative sum
@@ -210,12 +230,19 @@ class PaintersPartitionSolver:
             # get the bounds for the END of this k-th partition
             end_idx_lo = self._min_partition_jump_table[start_idx]
             end_idx_hi = self._max_partition_jump_table[start_idx]
+            # print(f'{self._min_partition_jump_table[start_idx]=}')
+            # print(f'{self._max_partition_jump_table[start_idx]=}')
+            # print(f'{self._partition_boundary_lo[_k + 1]=}')
+            # print(f'{self._partition_boundary_hi[_k + 1]=}')
 
-            # # TODO: partition boundary is not working, so some invariant somewhere died
+            # # ~~partition boundary is not working, so some invariant somewhere died~~
             # # note that the first elem of partition_boundary is the start of the 0-th partition
-            # end_idx_lo = max(self._min_partition_jump_table[start_idx], self._partition_boundary_lo[_k + 1])
-            # end_idx_hi = min(self._max_partition_jump_table[start_idx], self._partition_boundary_hi[_k + 1])
-
+            end_idx_lo = max(self._min_partition_jump_table[start_idx], self._partition_boundary_lo[_k + 1])
+            end_idx_hi = min(self._max_partition_jump_table[start_idx], self._partition_boundary_hi[_k + 1])
+            # so it turns out that this constraint can combine with the above one to produce a range where no solution is possible
+            # but bisect will still output whatever even if the
+            # so the correctness dies
+            # i added an o(1) check to check below so if bisect does something silly we just exit false
 
             # We want to find the largest index 'p' in [lo_idx, hi_idx] such that range_sum(current_idx, p) <= partition_size.
             # range_sum(current_idx, p) = cumsum[p] - (cumsum[current_idx-1])
@@ -228,17 +255,24 @@ class PaintersPartitionSolver:
             # We search in _cumulative_sum within the bounds [lo_idx, hi_idx + 1]
             # (Note: +1 because bisect range is lo, hi exclusive at end)
             next_idx = bisect.bisect_right(self._cumulative_sum, target, lo=end_idx_lo, hi=min(end_idx_hi + 1, n)) - 1
+            if self.range_sum(start_idx, next_idx) > partition_size:
+                return False
+
+            # print(f'{_k=}, {end_idx_lo=} {end_idx_hi=} {target=} {next_idx=}')
 
             # If we reached the end of the array, we are done
             if next_idx >= n - 1:
+                # print(f'{partition_size=} {_k=}, {end_idx_lo=} {end_idx_hi=} {target=} {next_idx=} True')
                 return True
 
             start_idx = next_idx + 1
 
             # If current_idx went past the bounds, something is wrong or finished (handled above)
             if start_idx >= n:
+                # print(f'{partition_size=} {_k=}, {end_idx_lo=} {end_idx_hi=} {target=} {next_idx=} True 2')
                 return True
 
+        # print(f'{partition_size=} False')
         return False
 
     def solve_partition(self) -> int:
@@ -282,10 +316,10 @@ if __name__ == '__main__':
     import random
     import time
 
-    for attempt in range(10):
+    for attempt in range(trials := 100):
         xs = [random.randint(1, 1_000_000_000) for _ in range(random.randint(1, 1000_000))]
         k = random.randint(1, 1_000)
-        print(f'[{attempt + 1}/100]', len(xs), k)  # , xs)
+        print(f'[{attempt + 1}/{trials}]', len(xs), k)  # , xs)
         t = time.time()
         solver = PaintersPartitionSolver(xs=xs, k=k)
         print('precompute', time.time() - t)
