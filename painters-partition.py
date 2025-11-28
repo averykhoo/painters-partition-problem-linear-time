@@ -187,7 +187,9 @@ class PaintersPartitionSolver:
             self._partition_boundary_lo[_k] = max(self._partition_boundary_lo[_k], pointer_max_right)
             if pointer_max_right > 0:
                 pointer_max_right -= 1
-            # because this bound is so strong it can accidentally push past lo, so if it happens, don't
+            # because this bound is so strong it can accidentally push past lo, so if it happens, then just don't
+            # moving the bound back means the last painter is being allocated less
+            # would be more optimal to calculate all bounds first, then do one more pass to push it back towards hi, so the strongest bound propagates further 
             self._partition_boundary_hi[_k] = max(self._partition_boundary_hi[_k], self._partition_boundary_lo[_k])
 
         assert self._max_partition_reverse_jump_table[pointer_max_right] == 0  # this must reach 0 by next step
