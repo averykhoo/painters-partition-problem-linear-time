@@ -83,10 +83,10 @@ about the correct partition P:
 
 > * `P >= ceil(sum(xs)/k)`
 > * `P >= max(xs)`
-> * `P >= min(sum(x[i:i+1]) for i in range(len(xs)-1))` (since k>=2) (this is O(n) if we use the cumsum approach)
+> * ~~`P >= min(sum(x[i:i+1]) for i in range(len(xs)-1))` (since k>=2)~~ (this is O(n) if we use the cumsum approach)
 > * `P <= sum(xs)` (but only equal when `k==1` or `k==sum(xs)==0`)
 > * `P <= ceil(sum(xs)/k) + max(xs)` (derived later)
-> * `P <= max(max(xs), min(sum(x[i:i+len(xs)-k+1]) for i in range(k)))` (this is O(k) if we use the cumsum approach)
+> * ~~`P <= max(max(xs), min(sum(x[i:i+len(xs)-k+1]) for i in range(k)))`~~ (this is O(k) if we use the cumsum approach)
 
 this all implies that the allowed range of `P` is of size at most `min(ceil(sum(xs)/k), max(xs))`
 
