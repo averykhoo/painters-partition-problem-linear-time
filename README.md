@@ -231,3 +231,13 @@ there must be a better proof but wtv
   since the possible range for each partition has to shrink proportionally to `len(xs) - k`
     * like we can prove that runtime is strictly no worse than `(len(xs)-1)C(k-1) = (len(xs)-1)!/((k-1)!(len(xs)-k))!)`
     * which should be further bounded by the range of values in `xs`
+
+
+
+# ideas from Gemini
+
+1. even if we exit early when we hit a partition boundary, we can still calculate the theoretical excess amount of panel that would not fit, and we can use that to eagerly cut down the inner loop binary search space by `excess / k`
+    * I feel like this might not do much since if the partition bounds are good and we're not trying extreme values then the excess will likely be small
+    * also there's no good way to calculate the shortfall if it does partition but we don't know whether how much smaller to go
+2. also suggested switching from binary search to linear probing when the range is small, it suggested 16 but I feel like 3-6 is more likely
+3. use something like newtons method to make better guesses than binary search since given a shortfall or excess we can intelligently guess at the region the answer should be nearby
