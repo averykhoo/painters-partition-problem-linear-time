@@ -241,3 +241,8 @@ there must be a better proof but wtv
     * also there's no good way to calculate the shortfall if it does partition but we don't know whether how much smaller to go
 2. also suggested switching from binary search to linear probing when the range is small, it suggested 16 but I feel like 3-6 is more likely
 3. use something like newtons method to make better guesses than binary search since given a shortfall or excess we can intelligently guess at the region the answer should be nearby
+
+
+chatgpt suggested
+1. run a greedy (and usually subtly wrong) algorithm once to produce a much stronger upper bound on the max partition size
+2. do some greedy board merging to approximate the answer faster
