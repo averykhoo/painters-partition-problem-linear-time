@@ -44,7 +44,6 @@ class PaintersPartitionSolver:
     # for completeness - we store zeroes in a separate array for reconstruction at the end
     _zero_indices: list[int] = field(init=False, default_factory=list)
 
-    # TODO: STORE ANSWER IN A PROPERTY IF FOUND DURING PREPROCESSING 
 
     def __post_init__(self):
         """
@@ -52,6 +51,9 @@ class PaintersPartitionSolver:
         (total sum is the last elem of cumulative sum)
         overall O(N) runtime if k < N
         """
+
+        # TODO: IF ANSWER IS FOUND, SET MIN AND MAX TO THE SAME VALUE AND EXIT
+
         xs_without_zeroes = []  # xs without any zeroes
 
         # 1st O(N) pass: loop to precompute all the properties of xs
@@ -296,7 +298,7 @@ class PaintersPartitionSolver:
         # but because we can optimize further when the partition is smaller but still too big
         # it requires (this sentence was cut off...? well wtv refer to readme)
 
-        # TODO: check found answer var
+        # TODO: IF THERE IS ONLY ONE VALID ANSWER IN THE RANGE DONT TEST JUST RETURN
 
         # gemini suggested this simple implementation, which does run correctly
         if not self.xs: return 0
