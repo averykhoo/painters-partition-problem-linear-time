@@ -44,6 +44,8 @@ class PaintersPartitionSolver:
     # for completeness - we store zeroes in a separate array for reconstruction at the end
     _zero_indices: list[int] = field(init=False, default_factory=list)
 
+    # TODO: STORE ANSWER IN A PROPERTY IF FOUND DURING PREPROCESSING 
+
     def __post_init__(self):
         """
         precompute the cumulative sum, max, and len
