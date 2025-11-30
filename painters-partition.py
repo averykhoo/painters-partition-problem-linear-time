@@ -296,6 +296,8 @@ class PaintersPartitionSolver:
         # but because we can optimize further when the partition is smaller but still too big
         # it requires (this sentence was cut off...? well wtv refer to readme)
 
+        # TODO: check found answer var
+
         # gemini suggested this simple implementation, which does run correctly
         if not self.xs: return 0
         search_space = range(self._min_partition_size, self._max_partition_size + 1)
