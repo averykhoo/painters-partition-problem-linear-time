@@ -241,6 +241,7 @@ there must be a better proof but wtv
     * also there's no good way to calculate the shortfall if it does partition but we don't know whether how much smaller to go
 2. also suggested switching from binary search to linear probing when the range is small, it suggested 16 but I feel like 3-6 is more likely
 3. use something like newtons method to make better guesses than binary search since given a shortfall or excess we can intelligently guess at the region the answer should be nearby
+4. update the jump tables pointers selectively when you use them. this guarantees o(1) update, and if we do it lazily (after testing the partition) we can update either hi or lo when we find out whether it's too much or too little. one catch is that the jump table is no longer monotonic, but as long as it remains correct the non monotonicity isn't inherently a problem, it's just that the table is not a set of "optimal"  jumps
 
 
 chatgpt suggested
