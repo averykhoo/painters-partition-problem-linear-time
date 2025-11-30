@@ -299,6 +299,8 @@ class PaintersPartitionSolver:
         # it requires (this sentence was cut off...? well wtv refer to readme)
 
         # TODO: IF THERE IS ONLY ONE VALID ANSWER IN THE RANGE DONT TEST JUST RETURN
+        # also use a custom bisect function that uses and updated min max partition as hi and lo so we can more easily push updates to the outer loop from the inner loop
+        # consider whether test partition should return a gradient of some sort so we can determine a more intelligent next guess
 
         # gemini suggested this simple implementation, which does run correctly
         if not self.xs: return 0
