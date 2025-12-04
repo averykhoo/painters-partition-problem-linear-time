@@ -176,8 +176,11 @@ class PaintersPartitionSolver:
         if self._partition_boundary_lo[-1] == len(self.xs) - 1:
             self._max_partition_size = self._min_partition_size
             return
-        # TODO: note that min_partition_size can technically be incremented by one now since we know it's not possible
         self._partition_boundary_lo[-1] = len(self.xs) - 1  # the last partition always ends at the end
+
+        # the reason min_partition_size can safely be incremented by one is
+        # at this point we know that it did not successfully partition the list
+        self._min_partition_size += 1
 
         # sanity check the boundaries
         assert len(self._partition_boundary_lo) == self.k + 1
@@ -195,35 +198,55 @@ class PaintersPartitionSolver:
         pointer_min_right = len(self.xs) - 1
         pointer_max_right = len(self.xs) - 1
         for _k in range(self.k - 1, 0, -1):
+            # note that min partition has increased by one, hence < instead of <=
             assert self.range_sum(self._min_partition_reverse_jump_table[pointer_min_right], pointer_min_right
-                                  ) <= self._min_partition_size
+                                  ) < self._min_partition_size
             assert self.range_sum(self._max_partition_reverse_jump_table[pointer_max_right], pointer_max_right
                                   ) <= self._max_partition_size
 
-            # TODO: check one more partition so we can use (original min_partition)+1 instead
-            # if this fails we raise the min by one
-            # if this succeeds we set the min and max to this value and return
-            # because we already checked the min value before
-            pointer_min_right = self._min_partition_reverse_jump_table[pointer_min_right]
-            self._partition_boundary_hi[_k] = min(self._partition_boundary_hi[_k], pointer_min_right)
-            if pointer_min_left > 0:
-                pointer_min_left -= 1
-            # TODO: check one more partition so we can use max-1 instead
-            # if this succeeds we drop the max by one
-            # if it doesnt we set the min to max and return
-            pointer_max_right = self._max_partition_reverse_jump_table[pointer_max_right]
-            self._partition_boundary_lo[_k] = max(self._partition_boundary_lo[_k], pointer_max_right)
-            if pointer_max_right > 0:
-                pointer_max_right -= 1
+            # move the min pointer backwards based on the incremented min partition size
+            # since the jump table was built for the original min size, we check the size of one more item
+            new_pointer_min_right = self._min_partition_reverse_jump_table[pointer_min_right]
+            if new_pointer_min_right > 0:
+                if self.range_sum(new_pointer_min_right - 1, pointer_min_right) <= self._min_partition_size:
+                    new_pointer_min_right -= 1
+            self._partition_boundary_hi[_k] = min(self._partition_boundary_hi[_k], new_pointer_min_right)
+            if new_pointer_min_right > 0:
+                new_pointer_min_right -= 1
+            pointer_min_right = new_pointer_min_right
+
+            # optimization: we check max_size minus one so we can reduce the search space by one more
+            new_pointer_max_right = self._max_partition_reverse_jump_table[pointer_max_right]
+            if new_pointer_max_right > 0:
+                if self.range_sum(new_pointer_max_right, pointer_max_right) == self._max_partition_size:
+                    new_pointer_max_right += 1
+            self._partition_boundary_lo[_k] = max(self._partition_boundary_lo[_k], new_pointer_max_right)
+            if new_pointer_max_right > 0:
+                new_pointer_max_right -= 1
+            pointer_max_right = new_pointer_max_right
+
             # because this bound is so strong it can accidentally push past lo, so if it happens, then just don't
-            # moving the bound back means the last painter is being allocated less
-            # TODO: would be more optimal to calculate all bounds first, then do one more pass to push it back towards hi, so the strongest bound propagates further 
+            # moving the bound back means the first painter is being allocated less than P
+            # moving it forward allocates the last painter more and allocates the first painter less than P
             self._partition_boundary_hi[_k] = max(self._partition_boundary_hi[_k], self._partition_boundary_lo[_k])
 
         assert self._max_partition_reverse_jump_table[pointer_max_right] == 0  # this must reach 0 by next step
         assert all((hi >= lo) for hi, lo in zip(self._partition_boundary_hi, self._partition_boundary_lo))
         # print(f'{self._partition_boundary_lo=}')
         # print(f'{self._partition_boundary_hi=}')
+
+        # early exit if the incremented pointer min right would succeed, otherwise increment again
+        if self.range_sum(0, pointer_min_right) <= self._min_partition_size:
+            self._max_partition_size = self._min_partition_size
+            return
+        else:
+            self._min_partition_size += 1
+        # early exit if the incremented pointer max right failed, otherwise decrement it
+        if self.range_sum(0, pointer_max_right) > self._max_partition_size - 1:
+            self._min_partition_size = self._max_partition_size
+            return
+        else:
+            self._max_partition_size -= 1
 
         # TODO: linked list of which partitions need to be checked (i.e. which boundaries are ambiguous)
         # maybe use a dict of int->int as pointers, and it probably needs to be doubly linked
