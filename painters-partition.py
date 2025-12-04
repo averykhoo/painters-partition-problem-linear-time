@@ -178,9 +178,11 @@ class PaintersPartitionSolver:
             return
         self._partition_boundary_lo[-1] = len(self.xs) - 1  # the last partition always ends at the end
 
-        # the reason min_partition_size can safely be incremented by one is
+        # the reason min_partition_size can safely be incremented by one is because
         # at this point we know that it did not successfully partition the list
         self._min_partition_size += 1
+        if self._min_partition_size == self._max_partition_size:
+            return
 
         # sanity check the boundaries
         assert len(self._partition_boundary_lo) == self.k + 1
@@ -240,7 +242,7 @@ class PaintersPartitionSolver:
             self._max_partition_size = self._min_partition_size
             return
         else:
-            self._min_partition_size += 1
+            self._min_partition_size += 1  # this is now the original min partition size plus 2
         # early exit if the incremented pointer max right failed, otherwise decrement it
         if self.range_sum(0, pointer_max_right) > self._max_partition_size - 1:
             self._min_partition_size = self._max_partition_size
