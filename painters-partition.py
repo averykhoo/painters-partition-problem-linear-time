@@ -44,7 +44,6 @@ class PaintersPartitionSolver:
     # for completeness - we store zeroes in a separate array for reconstruction at the end
     _zero_indices: list[int] = field(init=False, default_factory=list)
 
-
     def __post_init__(self):
         """
         precompute the cumulative sum, max, and len
@@ -201,7 +200,6 @@ class PaintersPartitionSolver:
         # print(f'{self._partition_boundary_lo=}')
         # print(f'{self._partition_boundary_hi=}')
 
-
         # TODO: linked list of which partitions need to be checked (i.e. which boundaries are ambiguous)
         # maybe use a dict of int->int as pointers, and it probably needs to be doubly linked
         # can probably safely ignore the GC and just not remove old nodes
@@ -298,15 +296,23 @@ class PaintersPartitionSolver:
         # but because we can optimize further when the partition is smaller but still too big
         # it requires (this sentence was cut off...? well wtv refer to readme)
 
-        # TODO: IF THERE IS ONLY ONE VALID ANSWER IN THE RANGE DONT TEST JUST RETURN
-        # also use a custom bisect function that uses and updated min max partition as hi and lo so we can more easily push updates to the outer loop from the inner loop
-        # consider whether test partition should return a gradient of some sort so we can determine a more intelligent next guess
+        # TODO: consider whether test partition should return a gradient of some sort
+        # so we can determine a more intelligent next guess
 
-        # gemini suggested this simple implementation, which does run correctly
         if not self.xs: return 0
-        search_space = range(self._min_partition_size, self._max_partition_size + 1)
-        idx = bisect.bisect_left(search_space, True, key=self.test_partition)
-        return search_space[idx]
+
+        # note that min and max partition sizes are both *inclusive* which is different from the standard bisect
+        while self._min_partition_size < self._max_partition_size:
+            mid = (self._min_partition_size + self._max_partition_size) // 2
+
+            # the reason for using min and max is that in the future there's a plan to update min and max partition
+            # from inside the test function, so this shouldn't overwrite the better guess
+            if self.test_partition(mid):
+                # to keep it inclusive, we don't use max=mid-1
+                self._max_partition_size = min(self._max_partition_size, mid)
+            else:
+                self._min_partition_size = max(self._min_partition_size, mid + 1)
+        return self._min_partition_size
 
 
 def painter(xs, k):
@@ -331,10 +337,12 @@ if __name__ == '__main__':
     import random
     import time
 
-    for attempt in range(trials := 100):
-        xs = [random.randint(1, 1_000_000_000) for _ in range(random.randint(1, 1000_000))]
-        k = random.randint(1, 1_000)
-        print(f'[{attempt + 1}/{trials}]', len(xs), k)  # , xs)
+
+    def test_painter(xs, k, attempt=0, trials=0):
+        if trials:
+            print(f'[{attempt + 1}/{trials}]', len(xs), k)  # , xs)
+        else:
+            print(len(xs), k, xs)
         t = time.time()
         solver = PaintersPartitionSolver(xs=xs, k=k)
         print('precompute', time.time() - t)
@@ -346,3 +354,18 @@ if __name__ == '__main__':
         print(answer)
         assert ans2 == answer, ans2
         print('-' * 100)
+
+
+    for i in range(1, 10):
+        for j in range(1, 10):
+            for k in range(1, 10):
+                test_painter([i] * j, k)
+    for i in range(1, 10):
+        for j in range(1, 10):
+            for k in range(1, 10):
+                test_painter(list(range(i)) * j, k)
+
+    for attempt in range(trials := 100):
+        xs = [random.randint(1, 1_000_000_000) for _ in range(random.randint(1, 1000_000))]
+        k = random.randint(1, 1_000)
+        test_painter(xs, k, attempt, trials)
