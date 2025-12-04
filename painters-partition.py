@@ -50,6 +50,9 @@ class PaintersPartitionSolver:
         (total sum is the last elem of cumulative sum)
         overall O(N) runtime if k < N
         """
+        # edge case
+        if len(self.xs) == 0:
+            return  # no work needs to be done
 
         # TODO: IF ANSWER IS FOUND, SET MIN AND MAX TO THE SAME VALUE AND EXIT
 
@@ -89,17 +92,25 @@ class PaintersPartitionSolver:
         if self.k <= 0:
             raise ValueError(f'found invalid value {self.k} for `k`, which must be >0')
 
+        # early exit if we have more workers than partitions
+        if self.k >= len(self.xs):
+            self._min_partition_size = self._max_partition_size = self._max_xs
+            return
+
         # calculation of min and max partition size
         self._min_partition_size = max(
             self._max_xs,
             int(math.ceil(self._sum_xs / self.k)),
         )
-        assert self._min_partition_size > 0
         self._max_partition_size = min(
             self._sum_xs,
             int(math.ceil(self._sum_xs / self.k)) + self._max_xs,
         )
+        assert self._min_partition_size > 0
         assert self._max_partition_size >= self._min_partition_size
+        if self._min_partition_size == self._max_partition_size:
+            return  # this also handles the case where k=1
+
         # print(f'{self._min_partition_size=}')
         # print(f'{self._max_partition_size=}')
 
@@ -159,6 +170,13 @@ class PaintersPartitionSolver:
             self._partition_boundary_hi.append(pointer_max_left)
             if pointer_max_left < len(self.xs) - 1:
                 pointer_max_left += 1
+
+        # early exit if the smallest possible partition is sufficient
+        # this means we've already found the answer
+        if self._partition_boundary_lo[-1] == len(self.xs) - 1:
+            self._max_partition_size = self._min_partition_size
+            return
+        # TODO: note that min_partition_size can technically be incremented by one now since we know it's not possible
         self._partition_boundary_lo[-1] = len(self.xs) - 1  # the last partition always ends at the end
 
         # sanity check the boundaries
@@ -172,7 +190,6 @@ class PaintersPartitionSolver:
         # print(f'{self._partition_boundary_lo=}')
         # print(f'{self._partition_boundary_hi=}')
 
-        # TODO: this somehow creates incorrect bounds
         # 4th O(N) pass: tighten partition bounds by looking in reverse
         # this could totally have been merged into the above loop but is separate for improved readability
         pointer_min_right = len(self.xs) - 1
@@ -182,10 +199,18 @@ class PaintersPartitionSolver:
                                   ) <= self._min_partition_size
             assert self.range_sum(self._max_partition_reverse_jump_table[pointer_max_right], pointer_max_right
                                   ) <= self._max_partition_size
+
+            # TODO: check one more partition so we can use (original min_partition)+1 instead
+            # if this fails we raise the min by one
+            # if this succeeds we set the min and max to this value and return
+            # because we already checked the min value before
             pointer_min_right = self._min_partition_reverse_jump_table[pointer_min_right]
             self._partition_boundary_hi[_k] = min(self._partition_boundary_hi[_k], pointer_min_right)
             if pointer_min_left > 0:
                 pointer_min_left -= 1
+            # TODO: check one more partition so we can use max-1 instead
+            # if this succeeds we drop the max by one
+            # if it doesnt we set the min to max and return
             pointer_max_right = self._max_partition_reverse_jump_table[pointer_max_right]
             self._partition_boundary_lo[_k] = max(self._partition_boundary_lo[_k], pointer_max_right)
             if pointer_max_right > 0:
@@ -301,7 +326,8 @@ class PaintersPartitionSolver:
 
         if not self.xs: return 0
 
-        # note that min and max partition sizes are both *inclusive* which is different from the standard bisect
+        # note that min and max partition sizes are both inclusive
+        # this is different from the standard bisect's assumptions/invariants
         while self._min_partition_size < self._max_partition_size:
             mid = (self._min_partition_size + self._max_partition_size) // 2
 
@@ -317,6 +343,8 @@ class PaintersPartitionSolver:
 
 def painter(xs, k):
     # O(len(xs) * log(sum(xs))
+    if sum(xs) == 0: return 0
+
     def is_possible(time_limit):
         count, current_sum = 1, 0
         for length in xs:
@@ -356,12 +384,12 @@ if __name__ == '__main__':
         print('-' * 100)
 
 
-    for i in range(1, 10):
-        for j in range(1, 10):
+    for i in range(10):
+        for j in range(10):
             for k in range(1, 10):
                 test_painter([i] * j, k)
-    for i in range(1, 10):
-        for j in range(1, 10):
+    for i in range(10):
+        for j in range(10):
             for k in range(1, 10):
                 test_painter(list(range(i)) * j, k)
 
