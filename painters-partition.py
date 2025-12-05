@@ -108,6 +108,7 @@ class PaintersPartitionSolver:
                 return
 
         # calculation of min and max partition size
+        # TODO: check tighter bounds, see readme derivations
         self._min_partition_size = max(
             self._max_xs,
             int(math.ceil(self._sum_xs / self.k)),
