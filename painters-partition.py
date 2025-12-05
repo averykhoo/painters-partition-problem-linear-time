@@ -266,44 +266,33 @@ class PaintersPartitionSolver:
             _range_sum -= self._cumulative_sum[start - 1]
         return _range_sum
 
-    def test_partition(self, partition_size: int) -> bool:  # tuple[int, int]:
+    def test_partition(self, partition_size: int) -> bool:
         """
-        if too small, returns the remainder that couldn't fit
-        if too big, returns the excess space
-        returns zero if and only if the last partition is completely filled
+        if too small (i.e., couldn't fit into the partitions), returns False
+        if it fits (or is too big), returns True
 
-        also returns the largest partition size
-
-        gemini3pro's complaint:
-            Over-engineering: The standard Binary Search only needs a boolean:
-            `True` (it fits in k partitions) or `False` (it needs >k).
-
-        :param partition_size:
-        :return:
+        TODO: consider if we can return an "excess amount" or the extra space
+        returning zero iff the last partition is completely full
+        this is a sort of gradient that can inform the outer loop to make better guesses
         """
         # gemini suggested
         start_idx = 0
         n = len(self.xs)
 
-        for _k in range(self.k):
-            # get the bounds for the END of this k-th partition
-            end_idx_lo = self._min_partition_jump_table[start_idx]
-            end_idx_hi = self._max_partition_jump_table[start_idx]
-            # print(f'{self._min_partition_jump_table[start_idx]=}')
-            # print(f'{self._max_partition_jump_table[start_idx]=}')
-            # print(f'{self._partition_boundary_lo[_k + 1]=}')
-            # print(f'{self._partition_boundary_hi[_k + 1]=}')
+        # TODO: keep a record of all the partition points, so we can update the hi and lo partition boundaries
+        # if we exit early we can still update the ones we found so far
 
-            # # ~~partition boundary is not working, so some invariant somewhere died~~
-            # # note that the first elem of partition_boundary is the start of the 0-th partition
+        # TODO: use the linked list instead of iterating over all of k
+        # when we skip a k we just take the prev k lo since that boundary is fixed
+        # at the start we can assert the size is correct
+
+        for _k in range(self.k):
+            # note that the first elem of `partition_boundary` is the start of the 0-th partition, we need the end
             end_idx_lo = max(self._min_partition_jump_table[start_idx], self._partition_boundary_lo[_k + 1])
             end_idx_hi = min(self._max_partition_jump_table[start_idx], self._partition_boundary_hi[_k + 1])
-            # so it turns out that this constraint can combine with the above one to produce a range where no solution is possible
-            # but bisect will still output whatever even if the
-            # so the correctness dies
-            # i added an o(1) check to check below so if bisect does something silly we just exit false
 
-            # We want to find the largest index 'p' in [lo_idx, hi_idx] such that range_sum(current_idx, p) <= partition_size.
+            # We want to find the largest index 'p' in [lo_idx, hi_idx]
+            # such that range_sum(current_idx, p) <= partition_size.
             # range_sum(current_idx, p) = cumsum[p] - (cumsum[current_idx-1])
             # So: cumsum[p] <= partition_size + (cumsum[current_idx-1])
 
@@ -311,13 +300,15 @@ class PaintersPartitionSolver:
             target = prev_sum + partition_size
 
             # bisect_right returns insertion point.
-            # We search in _cumulative_sum within the bounds [lo_idx, hi_idx + 1]
+            # We search in `_cumulative_sum` within the bounds [lo_idx, hi_idx + 1]
             # (Note: +1 because bisect range is lo, hi exclusive at end)
             next_idx = bisect.bisect_right(self._cumulative_sum, target, lo=end_idx_lo, hi=min(end_idx_hi + 1, n)) - 1
+
+            # so it turns out that the range might be constrained in a way the partition cannot happen
+            # but bisect must still output something, even if it is incorrect
+            # if this o(1) sanity check fails, we just exit false
             if self.range_sum(start_idx, next_idx) > partition_size:
                 return False
-
-            # print(f'{_k=}, {end_idx_lo=} {end_idx_hi=} {target=} {next_idx=}')
 
             # If we reached the end of the array, we are done
             if next_idx >= n - 1:
@@ -330,6 +321,9 @@ class PaintersPartitionSolver:
             if start_idx >= n:
                 # print(f'{partition_size=} {_k=}, {end_idx_lo=} {end_idx_hi=} {target=} {next_idx=} True 2')
                 return True
+
+        # TODO: update partition hi or lo before returning
+        # this should probably be its own class method - pass the dict and let it update
 
         # print(f'{partition_size=} False')
         return False
@@ -356,13 +350,12 @@ class PaintersPartitionSolver:
         while self._min_partition_size < self._max_partition_size:
             mid = (self._min_partition_size + self._max_partition_size) // 2
 
-            # the reason for using min and max is that in the future there's a plan to update min and max partition
-            # from inside the test function, so this shouldn't overwrite the better guess
+            # we assume nobody else is updating the min and max partition sizes
+            # TODO: if we update from inside test_partition, don't update here, or constrain via min/max
             if self.test_partition(mid):
-                # to keep it inclusive, we don't use max=mid-1
-                self._max_partition_size = min(self._max_partition_size, mid)
+                self._max_partition_size = mid  # to keep the range inclusive, we don't use max=mid-1
             else:
-                self._min_partition_size = max(self._min_partition_size, mid + 1)
+                self._min_partition_size = mid + 1
         return self._min_partition_size
 
 
