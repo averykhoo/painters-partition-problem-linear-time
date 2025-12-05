@@ -3,9 +3,6 @@ import itertools
 import math
 from dataclasses import dataclass
 from dataclasses import field
-from typing import Iterable
-
-
 
 
 @dataclass
@@ -99,6 +96,16 @@ class PaintersPartitionSolver:
         if self.k >= len(self.xs):
             self._min_partition_size = self._max_partition_size = self._max_xs
             return
+
+        # early exit when this special condition holds as we know the partition is just the max
+        if self.k % 2 == 1:
+            if self._max_xs * (self.k - 1) >= 2 * (self._sum_xs - max(self.xs[0], self.xs[-1])) - self.k + 1:
+                self._min_partition_size = self._max_partition_size = self._max_xs
+                return
+        else:
+            if self._max_xs * k >= 2 * self._sum_xs - k:
+                self._min_partition_size = self._max_partition_size = self._max_xs
+                return
 
         # calculation of min and max partition size
         self._min_partition_size = max(
