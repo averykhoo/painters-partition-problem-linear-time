@@ -231,6 +231,13 @@ there must be a better proof but wtv
   since the possible range for each partition has to shrink proportionally to `len(xs) - k`
     * like we can prove that runtime is strictly no worse than `(len(xs)-1)C(k-1) = (len(xs)-1)!/((k-1)!(len(xs)-k))!)`
     * which should be further bounded by the range of values in `xs`
+* update derivation to show the full big o and that k log(n/k) <= n as k->n
+* also technically maybe the first loop is also n log(max) as an accumulator loops over all n and each addition is complexity based on the bit len? but then maybe we should assume addition is constant time
+* figure out how to calculate complexity as k decreases over time with the linked list trick
+* if any successful partitioning has zero storage left, then that is the min partition and we can return 
+* check if remaining stuff is more than (k- current)*p, then exit
+
+
 
 # ideas from Gemini
 
