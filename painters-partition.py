@@ -120,12 +120,12 @@ class PaintersPartitionSolver:
         # TODO: re-enable this optimization after fixing the reverse jump tables
         # tighter bound in this special case
         if self._max_xs * self.k < self._sum_xs:
-            print(self._max_partition_size)
+            # print(self._max_partition_size)
             self._max_partition_size = min(
                 self._max_partition_size,
                 int(math.ceil((self._sum_xs + (self._max_xs - 1) * (self.k - 1)) / self.k)),
             )
-            print(f'after: {self._max_partition_size=}')
+            # print(f'after: {self._max_partition_size=}')
 
         assert self._min_partition_size > 0
         assert self._max_partition_size >= self._min_partition_size
@@ -177,8 +177,8 @@ class PaintersPartitionSolver:
 
         assert len(self._min_partition_reverse_jump_table) == len(self.xs)
         assert len(self._max_partition_reverse_jump_table) == len(self.xs)
-        print(f'{self._min_partition_reverse_jump_table=}')
-        print(f'{self._max_partition_reverse_jump_table=}')
+        # print(f'{self._min_partition_reverse_jump_table=}')
+        # print(f'{self._max_partition_reverse_jump_table=}')
 
         # sanity check the endpoints, which should point to themselves
         assert self._min_partition_jump_table[-1] == len(self.xs) - 1
@@ -258,7 +258,7 @@ class PaintersPartitionSolver:
             new_pointer_max_right = self._max_partition_reverse_jump_table[pointer_max_right]
             if new_pointer_max_right > 0:
                 if self.range_sum(new_pointer_max_right, pointer_max_right) == self._max_partition_size:
-                    new_pointer_max_right += 1  # TODO: gemini says this is a bug
+                    new_pointer_max_right += 1
             self._partition_boundary_lo[_k] = max(self._partition_boundary_lo[_k], new_pointer_max_right)
             if new_pointer_max_right > 0:
                 new_pointer_max_right -= 1
@@ -268,19 +268,21 @@ class PaintersPartitionSolver:
             # moving the bound back means the first painter is being allocated less than P
             # moving it forward allocates the last painter more and allocates the first painter less than P
             self._partition_boundary_hi[_k] = max(self._partition_boundary_hi[_k], self._partition_boundary_lo[_k])
-            print(f'{pointer_max_right=}')
+            # print(f'{pointer_max_right=}')
 
-        assert self._max_partition_reverse_jump_table[pointer_max_right] == 0  # this must reach 0 by next step
         assert all((hi >= lo) for hi, lo in zip(self._partition_boundary_hi, self._partition_boundary_lo))
         # print(f'{self._partition_boundary_lo=}')
         # print(f'{self._partition_boundary_hi=}')
-
-        # early exit if the incremented pointer min right would succeed, otherwise increment again
+        # early exit if the incremented pointer min right would not succeed, otherwise increment again
         if self.range_sum(0, pointer_min_right) <= self._min_partition_size:
             self._max_partition_size = self._min_partition_size
             return
         else:
             self._min_partition_size += 1  # this is now the original min partition size plus 2
+
+        # if we used the max partition size, this must reach 0 by next step, which is encoded as the following assert
+        # assert self._max_partition_reverse_jump_table[pointer_max_right] == 0
+        # but because we aren't using the max partition size, it could fail which actually means we found the answer
         # early exit if the incremented pointer max right failed, otherwise decrement it
         if self.range_sum(0, pointer_max_right) > self._max_partition_size - 1:
             self._min_partition_size = self._max_partition_size
