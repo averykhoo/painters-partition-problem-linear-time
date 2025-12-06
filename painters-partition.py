@@ -258,7 +258,7 @@ class PaintersPartitionSolver:
             new_pointer_max_right = self._max_partition_reverse_jump_table[pointer_max_right]
             if new_pointer_max_right > 0:
                 if self.range_sum(new_pointer_max_right, pointer_max_right) == self._max_partition_size:
-                    new_pointer_max_right += 1
+                    new_pointer_max_right += 1  # TODO: gemini says this is a bug
             self._partition_boundary_lo[_k] = max(self._partition_boundary_lo[_k], new_pointer_max_right)
             if new_pointer_max_right > 0:
                 new_pointer_max_right -= 1
