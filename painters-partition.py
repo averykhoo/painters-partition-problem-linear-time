@@ -117,15 +117,15 @@ class PaintersPartitionSolver:
             int(math.ceil(self._sum_xs / self.k)) + self._max_xs,
         )
 
-        # # TODO: re-enable this optimization after fixing the reverse jump tables
-        # # tighter bound in this special case
-        # if self._max_xs * self.k < self._sum_xs:
-        #     print(self._max_partition_size)
-        #     self._max_partition_size = min(
-        #         self._max_partition_size,
-        #         int(math.ceil((self._sum_xs + (self._max_xs - 1) * (self.k - 1)) / self.k)),
-        #     )
-        #     print(f'{self._max_partition_size=}')
+        # TODO: re-enable this optimization after fixing the reverse jump tables
+        # tighter bound in this special case
+        if self._max_xs * self.k < self._sum_xs:
+            print(self._max_partition_size)
+            self._max_partition_size = min(
+                self._max_partition_size,
+                int(math.ceil((self._sum_xs + (self._max_xs - 1) * (self.k - 1)) / self.k)),
+            )
+            print(f'after: {self._max_partition_size=}')
 
         assert self._min_partition_size > 0
         assert self._max_partition_size >= self._min_partition_size
@@ -146,27 +146,39 @@ class PaintersPartitionSolver:
                 self._max_partition_jump_table.append(i - 1)
                 pointer_max_left += 1
 
-            # TODO: this is broken, needs to be computed from the right instead
-            self._min_partition_reverse_jump_table.append(pointer_min_left)
-            self._max_partition_reverse_jump_table.append(pointer_max_left)
-
-            print(f'{self._max_partition_reverse_jump_table=}')
-
-        # there's no further to jump, so just jump to the end
-        assert len(self._min_partition_jump_table) == pointer_min_left
-        assert len(self._max_partition_jump_table) == pointer_max_left
+        assert pointer_min_left == len(self._min_partition_jump_table)
+        assert pointer_max_left == len(self._max_partition_jump_table)
         self._min_partition_jump_table.extend([len(self.xs) - 1] * (len(self.xs) - pointer_min_left))
         self._max_partition_jump_table.extend([len(self.xs) - 1] * (len(self.xs) - pointer_max_left))
-        # print(f'{self._min_partition_jump_table=}')
-        # print(f'{self._max_partition_jump_table=}')
-
         # sanity check the length
         assert len(self._min_partition_jump_table) == len(self.xs)
         assert len(self._max_partition_jump_table) == len(self.xs)
+        # print(f'{self._min_partition_jump_table=}')
+        # print(f'{self._max_partition_jump_table=}')
+
+        # 2.5-th O(N) pass: precompute reverse jump tables
+        pointer_min_right = len(self.xs) - 1
+        pointer_max_right = len(self.xs) - 1
+        for i in range(len(self.xs) - 1, -1, -1):  # in reverse
+            while self.range_sum(i, pointer_min_right) > self._min_partition_size:
+                self._min_partition_reverse_jump_table.append(i + 1)
+                pointer_min_right -= 1
+            while self.range_sum(i, pointer_max_right) > self._max_partition_size:
+                self._max_partition_reverse_jump_table.append(i + 1)
+                pointer_max_right -= 1
+
+        assert len(self._min_partition_reverse_jump_table) == len(self.xs) - 1 - pointer_min_right
+        assert len(self._max_partition_reverse_jump_table) == len(self.xs) - 1 - pointer_max_right
+
+        self._min_partition_reverse_jump_table.extend([0] * (pointer_min_right + 1))
+        self._max_partition_reverse_jump_table.extend([0] * (pointer_max_right + 1))
+        self._min_partition_reverse_jump_table.reverse()
+        self._max_partition_reverse_jump_table.reverse()
+
         assert len(self._min_partition_reverse_jump_table) == len(self.xs)
         assert len(self._max_partition_reverse_jump_table) == len(self.xs)
-        # print(f'{self._min_partition_reverse_jump_table=}')
-        # print(f'{self._max_partition_reverse_jump_table=}')
+        print(f'{self._min_partition_reverse_jump_table=}')
+        print(f'{self._max_partition_reverse_jump_table=}')
 
         # sanity check the endpoints, which should point to themselves
         assert self._min_partition_jump_table[-1] == len(self.xs) - 1
@@ -285,7 +297,7 @@ class PaintersPartitionSolver:
         # includes start and end
         assert start >= 0
         assert end >= start
-        assert len(self._cumulative_sum) >= end + 1
+        assert len(self._cumulative_sum) >= end + 1, (start, end, len(self._cumulative_sum))
 
         _range_sum = self._cumulative_sum[end]
         if start > 0:
