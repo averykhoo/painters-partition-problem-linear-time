@@ -108,7 +108,6 @@ class PaintersPartitionSolver:
                 return
 
         # calculation of min and max partition size
-        # TODO: check tighter bounds, see readme derivations
         self._min_partition_size = max(
             self._max_xs,
             int(math.ceil(self._sum_xs / self.k)),
@@ -117,6 +116,17 @@ class PaintersPartitionSolver:
             self._sum_xs,
             int(math.ceil(self._sum_xs / self.k)) + self._max_xs,
         )
+
+        # # TODO: re-enable this optimization after fixing the reverse jump tables
+        # # tighter bound in this special case
+        # if self._max_xs * self.k < self._sum_xs:
+        #     print(self._max_partition_size)
+        #     self._max_partition_size = min(
+        #         self._max_partition_size,
+        #         int(math.ceil((self._sum_xs + (self._max_xs - 1) * (self.k - 1)) / self.k)),
+        #     )
+        #     print(f'{self._max_partition_size=}')
+
         assert self._min_partition_size > 0
         assert self._max_partition_size >= self._min_partition_size
         if self._min_partition_size == self._max_partition_size:
@@ -135,8 +145,12 @@ class PaintersPartitionSolver:
             while self.range_sum(pointer_max_left, i) > self._max_partition_size:
                 self._max_partition_jump_table.append(i - 1)
                 pointer_max_left += 1
+
+            # TODO: this is broken, needs to be computed from the right instead
             self._min_partition_reverse_jump_table.append(pointer_min_left)
             self._max_partition_reverse_jump_table.append(pointer_max_left)
+
+            print(f'{self._max_partition_reverse_jump_table=}')
 
         # there's no further to jump, so just jump to the end
         assert len(self._min_partition_jump_table) == pointer_min_left
@@ -242,6 +256,7 @@ class PaintersPartitionSolver:
             # moving the bound back means the first painter is being allocated less than P
             # moving it forward allocates the last painter more and allocates the first painter less than P
             self._partition_boundary_hi[_k] = max(self._partition_boundary_hi[_k], self._partition_boundary_lo[_k])
+            print(f'{pointer_max_right=}')
 
         assert self._max_partition_reverse_jump_table[pointer_max_right] == 0  # this must reach 0 by next step
         assert all((hi >= lo) for hi, lo in zip(self._partition_boundary_hi, self._partition_boundary_lo))
