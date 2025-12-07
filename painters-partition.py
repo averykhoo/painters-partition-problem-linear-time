@@ -117,7 +117,7 @@ class PaintersPartitionSolver:
             int(math.ceil(self._sum_xs / self.k)) + self._max_xs,
         )
 
-        # TODO: re-enable this optimization after fixing the reverse jump tables
+        # ~~TODO: re-enable this optimization after fixing the reverse jump tables~~
         # tighter bound in this special case
         if self._max_xs * self.k < self._sum_xs:
             # print(self._max_partition_size)
@@ -156,6 +156,7 @@ class PaintersPartitionSolver:
         # print(f'{self._min_partition_jump_table=}')
         # print(f'{self._max_partition_jump_table=}')
 
+        ## TODO: revert and check against the one pass implementation, this might not have been the bug after all 
         # 2.5-th O(N) pass: precompute reverse jump tables
         pointer_min_right = len(self.xs) - 1
         pointer_max_right = len(self.xs) - 1
