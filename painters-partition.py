@@ -153,7 +153,7 @@ class PaintersPartitionSolver:
 
         # sanity check and then optimize the max partition size
         assert max_observed_partition_size <= self._max_partition_size
-        self._max_partition_size = max_observed_partition_size
+        # self._max_partition_size = max_observed_partition_size
 
         # sanity check the length
         assert len(self._min_partition_jump_table) == len(self.xs)
@@ -167,7 +167,7 @@ class PaintersPartitionSolver:
         assert self._min_partition_reverse_jump_table[0] == 0
         assert self._max_partition_reverse_jump_table[0] == 0
 
-        # no other item aside from the endpoints should point to itself, that indicates a partition of zero size
+        # no other item should point to itself, which is a partition of zero size
         assert all(self._min_partition_jump_table[i] >= i for i in range(len(self.xs) - 1))
         assert all(self._max_partition_jump_table[i] >= i for i in range(len(self.xs) - 1))
         assert all(self._min_partition_reverse_jump_table[i] <= i for i in range(1, len(self.xs)))
@@ -224,9 +224,19 @@ class PaintersPartitionSolver:
 
         # (optional) if there was no space left in the partitioning, this is the right answer
         # this is probably an exceedingly rare case
-        if self.range_sum(self._partition_boundary_hi[-2], len(self.xs) - 1) == self._max_partition_size:
-            self._min_partition_size = self._max_partition_size
-            return
+        # TODO: can we prove this never happens?
+        last_bound_start = self._partition_boundary_hi[-2] + 1
+        if last_bound_start <= len(self.xs) - 1:
+            if self.range_sum(last_bound_start, len(self.xs) - 1) == self._max_partition_size:
+                # print(self.xs)
+                # print(f'{self._max_partition_size=}')
+                # print(self.range_sum(self._partition_boundary_hi[-2], len(self.xs) - 1))
+                # print(self._partition_boundary_lo)
+                # print(self._partition_boundary_hi)
+                # print(self._max_partition_jump_table)
+                self._min_partition_size = self._max_partition_size
+                1 / 0
+                return
 
         # sanity check the boundaries
         assert len(self._partition_boundary_lo) == self.k + 1
@@ -299,7 +309,7 @@ class PaintersPartitionSolver:
         # O(1) lookup via cumulative sum
         # includes start and end
         assert start >= 0
-        assert end >= start
+        assert end >= start, (start, end, len(self.xs))
         assert len(self._cumulative_sum) >= end + 1, (start, end, len(self._cumulative_sum))
 
         _range_sum = self._cumulative_sum[end]
