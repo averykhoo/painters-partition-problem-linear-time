@@ -133,49 +133,33 @@ class PaintersPartitionSolver:
         # 2nd O(N) pass: precompute jump tables
         pointer_min_left = 0
         pointer_max_left = 0
-        validation_min_partition_reverse_jump_table = []
-        validation_max_partition_reverse_jump_table = []
+        max_observed_partition_size = 0
         for i in range(len(self.xs)):
             while self.range_sum(pointer_min_left, i) > self._min_partition_size:
                 self._min_partition_jump_table.append(i - 1)
                 pointer_min_left += 1
-            while self.range_sum(pointer_max_left, i) > self._max_partition_size:
+            while (current_max_partition_size := self.range_sum(pointer_max_left, i)) > self._max_partition_size:
                 self._max_partition_jump_table.append(i - 1)
                 pointer_max_left += 1
-            validation_min_partition_reverse_jump_table.append(pointer_min_left)
-            validation_max_partition_reverse_jump_table.append(pointer_max_left)
+            self._min_partition_reverse_jump_table.append(pointer_min_left)
+            self._max_partition_reverse_jump_table.append(pointer_max_left)
+            max_observed_partition_size = max(max_observed_partition_size, current_max_partition_size)
 
+        # extend the forwards table to the end
         assert pointer_min_left == len(self._min_partition_jump_table)
         assert pointer_max_left == len(self._max_partition_jump_table)
         self._min_partition_jump_table.extend([len(self.xs) - 1] * (len(self.xs) - pointer_min_left))
         self._max_partition_jump_table.extend([len(self.xs) - 1] * (len(self.xs) - pointer_max_left))
+
+        # sanity check and then optimize the max partition size
+        assert max_observed_partition_size <= self._max_partition_size
+        self._max_partition_size = max_observed_partition_size
+
         # sanity check the length
         assert len(self._min_partition_jump_table) == len(self.xs)
         assert len(self._max_partition_jump_table) == len(self.xs)
-
-        # 2.5-th O(N) pass: precompute reverse jump tables
-        pointer_min_right = len(self.xs) - 1
-        pointer_max_right = len(self.xs) - 1
-        for i in range(len(self.xs) - 1, -1, -1):  # in reverse
-            while self.range_sum(i, pointer_min_right) > self._min_partition_size:
-                self._min_partition_reverse_jump_table.append(i + 1)
-                pointer_min_right -= 1
-            while self.range_sum(i, pointer_max_right) > self._max_partition_size:
-                self._max_partition_reverse_jump_table.append(i + 1)
-                pointer_max_right -= 1
-
-        assert len(self._min_partition_reverse_jump_table) == len(self.xs) - 1 - pointer_min_right
-        assert len(self._max_partition_reverse_jump_table) == len(self.xs) - 1 - pointer_max_right
-
-        self._min_partition_reverse_jump_table.extend([0] * (pointer_min_right + 1))
-        self._max_partition_reverse_jump_table.extend([0] * (pointer_max_right + 1))
-        self._min_partition_reverse_jump_table.reverse()
-        self._max_partition_reverse_jump_table.reverse()
-
         assert len(self._min_partition_reverse_jump_table) == len(self.xs)
         assert len(self._max_partition_reverse_jump_table) == len(self.xs)
-        assert self._min_partition_reverse_jump_table == validation_min_partition_reverse_jump_table
-        assert self._max_partition_reverse_jump_table == validation_max_partition_reverse_jump_table
 
         # sanity check the endpoints, which should point to themselves
         assert self._min_partition_jump_table[-1] == len(self.xs) - 1
@@ -183,11 +167,31 @@ class PaintersPartitionSolver:
         assert self._min_partition_reverse_jump_table[0] == 0
         assert self._max_partition_reverse_jump_table[0] == 0
 
-        # no other item should point to itself, which is a partition of zero size
+        # no other item aside from the endpoints should point to itself, that indicates a partition of zero size
         assert all(self._min_partition_jump_table[i] >= i for i in range(len(self.xs) - 1))
         assert all(self._max_partition_jump_table[i] >= i for i in range(len(self.xs) - 1))
         assert all(self._min_partition_reverse_jump_table[i] <= i for i in range(1, len(self.xs)))
         assert all(self._max_partition_reverse_jump_table[i] <= i for i in range(1, len(self.xs)))
+
+        # validation pass - run in reverse just to make sure the reverse pass logic was right
+        # remove in production
+        validation_min_partition_reverse_jump_table = []
+        validation_max_partition_reverse_jump_table = []
+        pointer_min_right = len(self.xs) - 1
+        pointer_max_right = len(self.xs) - 1
+        for i in range(len(self.xs) - 1, -1, -1):  # in reverse
+            while self.range_sum(i, pointer_min_right) > self._min_partition_size:
+                validation_min_partition_reverse_jump_table.append(i + 1)
+                pointer_min_right -= 1
+            while self.range_sum(i, pointer_max_right) > self._max_partition_size:
+                validation_max_partition_reverse_jump_table.append(i + 1)
+                pointer_max_right -= 1
+        validation_min_partition_reverse_jump_table.extend([0] * (pointer_min_right + 1))
+        validation_max_partition_reverse_jump_table.extend([0] * (pointer_max_right + 1))
+        validation_min_partition_reverse_jump_table.reverse()
+        validation_max_partition_reverse_jump_table.reverse()
+        assert self._min_partition_reverse_jump_table == validation_min_partition_reverse_jump_table
+        assert self._max_partition_reverse_jump_table == validation_max_partition_reverse_jump_table
 
         # 3rd O(K) pass: build partition boundary lookup tables
         # this could totally have been merged into the above loop but is separate for improved readability
@@ -216,6 +220,12 @@ class PaintersPartitionSolver:
         # at this point we know that it did not successfully partition the list
         self._min_partition_size += 1
         if self._min_partition_size == self._max_partition_size:
+            return
+
+        # (optional) if there was no space left in the partitioning, this is the right answer
+        # this is probably an exceedingly rare case
+        if self.range_sum(self._partition_boundary_hi[-2], len(self.xs) - 1) == self._max_partition_size:
+            self._min_partition_size = self._max_partition_size
             return
 
         # sanity check the boundaries
@@ -259,11 +269,9 @@ class PaintersPartitionSolver:
                 new_pointer_max_right -= 1
             pointer_max_right = new_pointer_max_right
 
-            # because this bound is so strong it can accidentally push past lo, so if it happens, then just don't
+            # this bound can accidentally push past lo, so if it happens, then just don't let it
             # moving the bound back means the first painter is being allocated less than P
-            # moving it forward allocates the last painter more and allocates the first painter less than P
             self._partition_boundary_hi[_k] = max(self._partition_boundary_hi[_k], self._partition_boundary_lo[_k])
-            # print(f'{pointer_max_right=}')
 
         assert all((hi >= lo) for hi, lo in zip(self._partition_boundary_hi, self._partition_boundary_lo))
         # early exit if the incremented pointer min right would not succeed, otherwise increment again
@@ -308,11 +316,11 @@ class PaintersPartitionSolver:
         returning zero iff the last partition is completely full
         this is a sort of gradient that can inform the outer loop to make better guesses
         """
-        # gemini suggested
         start_idx = 0
         n = len(self.xs)
 
-        # TODO: keep a record of all the partition points, so we can update the hi and lo partition boundaries
+        # TODO: keep a record of all the discovered partition points
+        # so we can update the hi and lo partition boundaries
         # if we exit early we can still update the ones we found so far
 
         # TODO: use the linked list instead of iterating over all of k
@@ -345,20 +353,17 @@ class PaintersPartitionSolver:
 
             # If we reached the end of the array, we are done
             if next_idx >= n - 1:
-                # print(f'{partition_size=} {_k=}, {end_idx_lo=} {end_idx_hi=} {target=} {next_idx=} True')
                 return True
 
             start_idx = next_idx + 1
 
             # If current_idx went past the bounds, something is wrong or finished (handled above)
             if start_idx >= n:
-                # print(f'{partition_size=} {_k=}, {end_idx_lo=} {end_idx_hi=} {target=} {next_idx=} True 2')
                 return True
 
         # TODO: update partition hi or lo before returning
         # this should probably be its own class method - pass the dict and let it update
 
-        # print(f'{partition_size=} False')
         return False
 
     def solve_partition(self) -> int:
@@ -384,7 +389,7 @@ class PaintersPartitionSolver:
             mid = (self._min_partition_size + self._max_partition_size) // 2
 
             # we assume nobody else is updating the min and max partition sizes
-            # TODO: if we update from inside test_partition, don't update here, or constrain via min/max
+            # TODO: if we update from inside tst_partition, don't update here, or constrain via min/max
             if self.test_partition(mid):
                 self._max_partition_size = mid  # to keep the range inclusive, we don't use max=mid-1
             else:
@@ -417,19 +422,20 @@ if __name__ == '__main__':
     import time
 
 
-    def test_painter(xs, k, attempt=0, trials=0):
+    def tst_painter(xs, k, attempt=0, trials=0):
+        # renamed to avoid pytest detection
         if trials:
             print(f'[{attempt + 1}/{trials}]', len(xs), k)  # , xs)
         else:
             print(len(xs), k, xs)
-        t = time.time()
+        t = time.perf_counter()
         solver = PaintersPartitionSolver(xs=xs, k=k)
-        print('precompute', time.time() - t)
+        print('precompute', time.perf_counter() - t)
         answer = solver.solve_partition()
-        print('solver', time.time() - t)
-        t = time.time()
+        print('precompute + solver', time.perf_counter() - t)
+        t = time.perf_counter()
         ans2 = painter(xs, k)
-        print('dp', time.time() - t)
+        print('dp', time.perf_counter() - t)
         print(answer)
         assert ans2 == answer, ans2
         print('-' * 100)
@@ -438,13 +444,13 @@ if __name__ == '__main__':
     for i in range(10):
         for j in range(10):
             for k in range(1, 10):
-                test_painter([i] * j, k)
+                tst_painter([i] * j, k)
     for i in range(10):
         for j in range(10):
             for k in range(1, 10):
-                test_painter(list(range(i)) * j, k)
+                tst_painter(list(range(i)) * j, k)
 
     for attempt in range(trials := 100):
         xs = [random.randint(1, 1_000_000_000) for _ in range(random.randint(1, 1000_000))]
         k = random.randint(1, 1_000)
-        test_painter(xs, k, attempt, trials)
+        tst_painter(xs, k, attempt, trials)
