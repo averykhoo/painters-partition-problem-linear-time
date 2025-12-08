@@ -50,11 +50,12 @@ class PaintersPartitionSolver:
         (total sum is the last elem of cumulative sum)
         overall O(N) runtime if k < N
         """
+        # number of workers must be non-negative
+        if self.k < 0:
+            raise ValueError(f'found invalid value {self.k} for `k`, which must be non-negative (k >= 0)')
         # edge case
         if len(self.xs) == 0:
             return  # no work needs to be done
-
-        # TODO: IF ANSWER IS FOUND, SET MIN AND MAX TO THE SAME VALUE AND EXIT
 
         xs_without_zeroes = []  # xs without any zeroes
 
@@ -89,8 +90,8 @@ class PaintersPartitionSolver:
             return
 
         # early exit if no workers exist to do work
-        if self.k <= 0:
-            raise ValueError(f'found invalid value {self.k} for `k`, which must be >0')
+        if self.k == 0:
+            raise ValueError(f'found invalid value {self.k} for `k`, which must be >0 when xs is not empty')
 
         # early exit if we have more workers than partitions
         if self.k >= len(self.xs):
@@ -117,27 +118,23 @@ class PaintersPartitionSolver:
             int(math.ceil(self._sum_xs / self.k)) + self._max_xs,
         )
 
-        # ~~TODO: re-enable this optimization after fixing the reverse jump tables~~
         # tighter bound in this special case
         if self._max_xs * self.k < self._sum_xs:
-            # print(self._max_partition_size)
             self._max_partition_size = min(
                 self._max_partition_size,
                 int(math.ceil((self._sum_xs + (self._max_xs - 1) * (self.k - 1)) / self.k)),
             )
-            # print(f'after: {self._max_partition_size=}')
 
         assert self._min_partition_size > 0
         assert self._max_partition_size >= self._min_partition_size
         if self._min_partition_size == self._max_partition_size:
             return  # this also handles the case where k=1
 
-        # print(f'{self._min_partition_size=}')
-        # print(f'{self._max_partition_size=}')
-
         # 2nd O(N) pass: precompute jump tables
         pointer_min_left = 0
         pointer_max_left = 0
+        validation_min_partition_reverse_jump_table = []
+        validation_max_partition_reverse_jump_table = []
         for i in range(len(self.xs)):
             while self.range_sum(pointer_min_left, i) > self._min_partition_size:
                 self._min_partition_jump_table.append(i - 1)
@@ -145,6 +142,8 @@ class PaintersPartitionSolver:
             while self.range_sum(pointer_max_left, i) > self._max_partition_size:
                 self._max_partition_jump_table.append(i - 1)
                 pointer_max_left += 1
+            validation_min_partition_reverse_jump_table.append(pointer_min_left)
+            validation_max_partition_reverse_jump_table.append(pointer_max_left)
 
         assert pointer_min_left == len(self._min_partition_jump_table)
         assert pointer_max_left == len(self._max_partition_jump_table)
@@ -153,10 +152,7 @@ class PaintersPartitionSolver:
         # sanity check the length
         assert len(self._min_partition_jump_table) == len(self.xs)
         assert len(self._max_partition_jump_table) == len(self.xs)
-        # print(f'{self._min_partition_jump_table=}')
-        # print(f'{self._max_partition_jump_table=}')
 
-        ## TODO: revert and check against the one pass implementation, this might not have been the bug after all 
         # 2.5-th O(N) pass: precompute reverse jump tables
         pointer_min_right = len(self.xs) - 1
         pointer_max_right = len(self.xs) - 1
@@ -178,8 +174,8 @@ class PaintersPartitionSolver:
 
         assert len(self._min_partition_reverse_jump_table) == len(self.xs)
         assert len(self._max_partition_reverse_jump_table) == len(self.xs)
-        # print(f'{self._min_partition_reverse_jump_table=}')
-        # print(f'{self._max_partition_reverse_jump_table=}')
+        assert self._min_partition_reverse_jump_table == validation_min_partition_reverse_jump_table
+        assert self._max_partition_reverse_jump_table == validation_max_partition_reverse_jump_table
 
         # sanity check the endpoints, which should point to themselves
         assert self._min_partition_jump_table[-1] == len(self.xs) - 1
@@ -230,8 +226,6 @@ class PaintersPartitionSolver:
         assert self._partition_boundary_lo[-1] == len(self.xs) - 1
         assert self._partition_boundary_hi[-1] == len(self.xs) - 1  # this must have reached the end
         assert all((hi >= lo) for hi, lo in zip(self._partition_boundary_hi, self._partition_boundary_lo))
-        # print(f'{self._partition_boundary_lo=}')
-        # print(f'{self._partition_boundary_hi=}')
 
         # 4th O(N) pass: tighten partition bounds by looking in reverse
         # this could totally have been merged into the above loop but is separate for improved readability
@@ -272,8 +266,6 @@ class PaintersPartitionSolver:
             # print(f'{pointer_max_right=}')
 
         assert all((hi >= lo) for hi, lo in zip(self._partition_boundary_hi, self._partition_boundary_lo))
-        # print(f'{self._partition_boundary_lo=}')
-        # print(f'{self._partition_boundary_hi=}')
         # early exit if the incremented pointer min right would not succeed, otherwise increment again
         if self.range_sum(0, pointer_min_right) <= self._min_partition_size:
             self._max_partition_size = self._min_partition_size
