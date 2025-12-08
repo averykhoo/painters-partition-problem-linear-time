@@ -44,22 +44,17 @@ class PaintersPartitionSolver:
     # for completeness - we store zeroes in a separate array for reconstruction at the end
     _zero_indices: list[int] = field(init=False, default_factory=list)
 
-    def __post_init__(self):
+    def __build_cumulative_sum(self):
         """
-        precompute the cumulative sum, max, and len
-        (total sum is the last elem of cumulative sum)
-        overall O(N) runtime if k < N
+        builds the cumulative sum array
+        also caches the min, max, and sum
+
+        TODO: consider caching the len
+        :return:
         """
-        # number of workers must be non-negative
-        if self.k < 0:
-            raise ValueError(f'found invalid value {self.k} for `k`, which must be non-negative (k >= 0)')
-        # edge case
-        if len(self.xs) == 0:
-            return  # no work needs to be done
 
         xs_without_zeroes = []  # xs without any zeroes
 
-        # 1st O(N) pass: loop to precompute all the properties of xs
         # note that it would be much faster to use itertools.accumulate, but this demonstrates it can be a single loop
         for i, x in enumerate(self.xs):
             if x < 0:
@@ -77,7 +72,7 @@ class PaintersPartitionSolver:
         if xs_without_zeroes:
             assert self._min_xs == min(xs_without_zeroes)
             assert self._max_xs == max(xs_without_zeroes)
-            assert self._sum_xs == sum(self.xs) == sum(xs_without_zeroes)
+            assert self._sum_xs == sum(self.xs) == sum(xs_without_zeroes) == self._cumulative_sum[-1]
             assert self._cumulative_sum == list(itertools.accumulate(xs_without_zeroes))
         assert xs_without_zeroes == [x for x in self.xs if x]
         assert len(self._zero_indices) == len(self.xs) - len(xs_without_zeroes)
@@ -85,52 +80,7 @@ class PaintersPartitionSolver:
         # reassign self.xs
         self.xs = xs_without_zeroes
 
-        # early exit if the list was empty
-        if not self.xs:
-            return
-
-        # early exit if no workers exist to do work
-        if self.k == 0:
-            raise ValueError(f'found invalid value {self.k} for `k`, which must be >0 when xs is not empty')
-
-        # early exit if we have more workers than partitions
-        if self.k >= len(self.xs):
-            self._min_partition_size = self._max_partition_size = self._max_xs
-            return
-
-        # early exit when this special condition holds as we know the partition is just the max
-        if self.k % 2 == 1:
-            if self._max_xs * (self.k - 1) >= 2 * (self._sum_xs - max(self.xs[0], self.xs[-1])) - self.k + 1:
-                self._min_partition_size = self._max_partition_size = self._max_xs
-                return
-        else:
-            if self._max_xs * k >= 2 * self._sum_xs - k:
-                self._min_partition_size = self._max_partition_size = self._max_xs
-                return
-
-        # calculation of min and max partition size
-        self._min_partition_size = max(
-            self._max_xs,
-            int(math.ceil(self._sum_xs / self.k)),
-        )
-        self._max_partition_size = min(
-            self._sum_xs,
-            int(math.ceil(self._sum_xs / self.k)) + self._max_xs,
-        )
-
-        # tighter bound in this special case
-        if self._max_xs * self.k < self._sum_xs:
-            self._max_partition_size = min(
-                self._max_partition_size,
-                int(math.ceil((self._sum_xs + (self._max_xs - 1) * (self.k - 1)) / self.k)),
-            )
-
-        assert self._min_partition_size > 0
-        assert self._max_partition_size >= self._min_partition_size
-        if self._min_partition_size == self._max_partition_size:
-            return  # this also handles the case where k=1
-
-        # 2nd O(N) pass: precompute jump tables
+    def __build_jump_tables(self):
         pointer_min_left = 0
         pointer_max_left = 0
         max_observed_partition_size = 0
@@ -153,7 +103,7 @@ class PaintersPartitionSolver:
 
         # sanity check and then optimize the max partition size
         assert max_observed_partition_size <= self._max_partition_size
-        # self._max_partition_size = max_observed_partition_size
+        self._max_partition_size = max_observed_partition_size
 
         # sanity check the length
         assert len(self._min_partition_jump_table) == len(self.xs)
@@ -193,8 +143,9 @@ class PaintersPartitionSolver:
         assert self._min_partition_reverse_jump_table == validation_min_partition_reverse_jump_table
         assert self._max_partition_reverse_jump_table == validation_max_partition_reverse_jump_table
 
-        # 3rd O(K) pass: build partition boundary lookup tables
-        # this could totally have been merged into the above loop but is separate for improved readability
+    def __build_partition_boundary_lists(self):
+
+        # this could totally have been merged into the 2nd pass code, but is separate for improved readability
         self._partition_boundary_lo.append(0)  # the first partition always starts at 0
         self._partition_boundary_hi.append(0)
         pointer_min_left = 0
@@ -209,45 +160,7 @@ class PaintersPartitionSolver:
             if pointer_max_left < len(self.xs) - 1:
                 pointer_max_left += 1
 
-        # early exit if the smallest possible partition is sufficient
-        # this means we've already found the answer
-        if self._partition_boundary_lo[-1] == len(self.xs) - 1:
-            self._max_partition_size = self._min_partition_size
-            return
-        self._partition_boundary_lo[-1] = len(self.xs) - 1  # the last partition always ends at the end
-
-        # the reason min_partition_size can safely be incremented by one is because
-        # at this point we know that it did not successfully partition the list
-        self._min_partition_size += 1
-        if self._min_partition_size == self._max_partition_size:
-            return
-
-        # (optional) if there was no space left in the partitioning, this is the right answer
-        # this is probably an exceedingly rare case
-        # TODO: can we prove this never happens?
-        last_bound_start = self._partition_boundary_hi[-2] + 1
-        if last_bound_start <= len(self.xs) - 1:
-            if self.range_sum(last_bound_start, len(self.xs) - 1) == self._max_partition_size:
-                # print(self.xs)
-                # print(f'{self._max_partition_size=}')
-                # print(self.range_sum(self._partition_boundary_hi[-2], len(self.xs) - 1))
-                # print(self._partition_boundary_lo)
-                # print(self._partition_boundary_hi)
-                # print(self._max_partition_jump_table)
-                self._min_partition_size = self._max_partition_size
-                1 / 0
-                return
-
-        # sanity check the boundaries
-        assert len(self._partition_boundary_lo) == self.k + 1
-        assert len(self._partition_boundary_hi) == self.k + 1
-        assert self._partition_boundary_lo[0] == 0
-        assert self._partition_boundary_hi[0] == 0
-        assert self._partition_boundary_lo[-1] == len(self.xs) - 1
-        assert self._partition_boundary_hi[-1] == len(self.xs) - 1  # this must have reached the end
-        assert all((hi >= lo) for hi, lo in zip(self._partition_boundary_hi, self._partition_boundary_lo))
-
-        # 4th O(N) pass: tighten partition bounds by looking in reverse
+    def __narrow_partition_boundary_lists(self):
         # this could totally have been merged into the above loop but is separate for improved readability
         pointer_min_right = len(self.xs) - 1
         pointer_max_right = len(self.xs) - 1
@@ -284,12 +197,11 @@ class PaintersPartitionSolver:
             self._partition_boundary_hi[_k] = max(self._partition_boundary_hi[_k], self._partition_boundary_lo[_k])
 
         assert all((hi >= lo) for hi, lo in zip(self._partition_boundary_hi, self._partition_boundary_lo))
+
         # early exit if the incremented pointer min right would not succeed, otherwise increment again
         if self.range_sum(0, pointer_min_right) <= self._min_partition_size:
             self._max_partition_size = self._min_partition_size
             return
-        else:
-            self._min_partition_size += 1  # this is now the original min partition size plus 2
 
         # if we used the max partition size, this must reach 0 by next step, which is encoded as the following assert
         # assert self._max_partition_reverse_jump_table[pointer_max_right] == 0
@@ -298,8 +210,120 @@ class PaintersPartitionSolver:
         if self.range_sum(0, pointer_max_right) > self._max_partition_size - 1:
             self._min_partition_size = self._max_partition_size
             return
+
+        self._min_partition_size += 1  # this is now the original min partition size plus 2
+        self._max_partition_size -= 1
+
+    def __post_init__(self):
+        """
+        precompute the cumulative sum, max, and len
+        (total sum is the last elem of cumulative sum)
+        overall O(N) runtime if k < N
+        """
+        # number of workers must be non-negative
+        if self.k < 0:
+            raise ValueError(f'found invalid value {self.k} for `k`, which must be non-negative (k >= 0)')
+        # edge case
+        if len(self.xs) == 0:
+            return  # no work needs to be done
+
+        # 1st O(N) pass: loop to precompute all the properties of xs
+        self.__build_cumulative_sum()
+
+        # early exit if the list was empty
+        if not self.xs:
+            return
+
+        # early exit if no workers exist to do work
+        if self.k == 0:
+            raise ValueError(f'found invalid value {self.k} for `k`, which must be >0 when xs is not empty')
+
+        # early exit if we have more workers than partitions
+        if self.k >= len(self.xs):
+            self._min_partition_size = self._max_partition_size = self._max_xs
+            return
+
+        # early exit when this special condition holds as we know the partition is just the max
+        if self.k % 2 == 1:
+            if self._max_xs * (self.k - 1) >= 2 * (self._sum_xs - max(self.xs[0], self.xs[-1])) - self.k + 1:
+                self._min_partition_size = self._max_partition_size = self._max_xs
+                return
         else:
-            self._max_partition_size -= 1
+            if self._max_xs * self.k >= 2 * self._sum_xs - self.k:
+                self._min_partition_size = self._max_partition_size = self._max_xs
+                return
+
+        # calculation of min and max partition size
+        self._min_partition_size = max(
+            self._max_xs,
+            int(math.ceil(self._sum_xs / self.k)),
+        )
+        self._max_partition_size = min(
+            self._sum_xs,
+            int(math.ceil(self._sum_xs / self.k)) + self._max_xs,
+        )
+
+        # tighter bound in this special case
+        if self._max_xs * self.k < self._sum_xs:
+            self._max_partition_size = min(
+                self._max_partition_size,
+                int(math.ceil((self._sum_xs + (self._max_xs - 1) * (self.k - 1)) / self.k)),
+            )
+
+        assert self._min_partition_size > 0
+        assert self._max_partition_size >= self._min_partition_size
+        if self._min_partition_size == self._max_partition_size:
+            return  # this also handles the case where k=1
+
+        # 2nd O(N) pass: precompute jump tables
+        self.__build_jump_tables()
+
+        # 3rd O(K) pass: build partition boundary lookup tables
+        self.__build_partition_boundary_lists()
+
+        # early exit if the smallest possible partition is sufficient
+        # this means we've already found the answer
+        if self._partition_boundary_lo[-1] == len(self.xs) - 1:
+            self._max_partition_size = self._min_partition_size
+            return
+        self._partition_boundary_lo[-1] = len(self.xs) - 1  # the last partition always ends at the end
+
+        # the reason min_partition_size can safely be incremented by one is because
+        # at this point we know that it did not successfully partition the list
+        self._min_partition_size += 1
+        if self._min_partition_size == self._max_partition_size:
+            return
+
+        # (optional) if there was no space left in the partitioning, this is the right answer
+        # this is probably an exceedingly rare case
+        # TODO: can we prove this never happens?
+        last_bound_start = self._partition_boundary_hi[-2] + 1
+        if last_bound_start <= len(self.xs) - 1:
+            if self.range_sum(last_bound_start, len(self.xs) - 1) == self._max_partition_size:
+                # print(self.xs)
+                # print(f'{self._max_partition_size=}')
+                # print(self.range_sum(self._partition_boundary_hi[-2], len(self.xs) - 1))
+                # print(self._partition_boundary_lo)
+                # print(self._partition_boundary_hi)
+                # print(self._max_partition_jump_table)
+                self._min_partition_size = self._max_partition_size
+                # return
+                raise RuntimeError('unexpected optimization happened')
+
+        # sanity check the boundaries
+        assert len(self._partition_boundary_lo) == self.k + 1
+        assert len(self._partition_boundary_hi) == self.k + 1
+        assert self._partition_boundary_lo[0] == 0
+        assert self._partition_boundary_hi[0] == 0
+        assert self._partition_boundary_lo[-1] == len(self.xs) - 1
+        assert self._partition_boundary_hi[-1] == len(self.xs) - 1  # this must have reached the end
+        assert all((hi >= lo) for hi, lo in zip(self._partition_boundary_hi, self._partition_boundary_lo))
+
+        # 4th O(N) pass: tighten partition bounds by looking in reverse
+        self.__narrow_partition_boundary_lists()
+
+        if self._min_partition_size == self._max_partition_size:
+            return
 
         # TODO: linked list of which partitions need to be checked (i.e. which boundaries are ambiguous)
         # maybe use a dict of int->int as pointers, and it probably needs to be doubly linked
@@ -451,16 +475,16 @@ if __name__ == '__main__':
         print('-' * 100)
 
 
-    for i in range(10):
+    for _i in range(10):
         for j in range(10):
-            for k in range(1, 10):
-                tst_painter([i] * j, k)
-    for i in range(10):
+            for test_k in range(1, 10):
+                tst_painter([_i] * j, test_k)
+    for _i in range(10):
         for j in range(10):
-            for k in range(1, 10):
-                tst_painter(list(range(i)) * j, k)
+            for test_k in range(1, 10):
+                tst_painter(list(range(_i)) * j, test_k)
 
-    for attempt in range(trials := 100):
-        xs = [random.randint(1, 1_000_000_000) for _ in range(random.randint(1, 1000_000))]
-        k = random.randint(1, 1_000)
-        tst_painter(xs, k, attempt, trials)
+    for _attempt in range(_trials := 100):
+        test_xs = [random.randint(1, 1_000_000_000) for _ in range(random.randint(1, 1000_000))]
+        test__k = random.randint(1, 1_000)
+        tst_painter(test_xs, test__k, _attempt, _trials)
