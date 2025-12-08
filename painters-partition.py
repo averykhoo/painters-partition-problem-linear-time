@@ -37,7 +37,9 @@ class PaintersPartitionSolver:
     # lists of length (k+1) for the bounds of all endpoints for all partitions
     # the 1st partition always starts at the start of the list, so both lists always start with 0
     # the k-th partition always ends at the end of the list, so both lists always end with len(xs)
-    # or maybe make it length k and just set the last elem to len(xs) to make the code easier to write
+    # TODO: fine-tune the boundary definition which currently is a bit fuzzy
+    # note that a boundary lies immediately after the index number, i.e.:
+    # 0 points at the `,` in `[0,1]`
     _partition_boundary_lo: list[int] = field(init=False, default_factory=list)
     _partition_boundary_hi: list[int] = field(init=False, default_factory=list)
 
@@ -146,8 +148,10 @@ class PaintersPartitionSolver:
     def __build_partition_boundary_lists(self):
 
         # this could totally have been merged into the 2nd pass code, but is separate for improved readability
-        self._partition_boundary_lo.append(0)  # the first partition always starts at 0
-        self._partition_boundary_hi.append(0)
+        # the first partition always starts before item 0, i.e. after item "-1"
+        # this is just added for completeness, but is never actually used
+        self._partition_boundary_lo.append(-1)
+        self._partition_boundary_hi.append(-1)
         pointer_min_left = 0
         pointer_max_left = 0
         for _ in range(self.k):
@@ -159,6 +163,46 @@ class PaintersPartitionSolver:
             self._partition_boundary_hi.append(pointer_max_left)
             if pointer_max_left < len(self.xs) - 1:
                 pointer_max_left += 1
+
+
+
+        # early exit if the smallest possible partition is sufficient
+        # this means we've already found the answer
+        if self._partition_boundary_lo[-1] == len(self.xs) - 1:
+            self._max_partition_size = self._min_partition_size
+            return
+        self._partition_boundary_lo[-1] = len(self.xs) - 1  # the last partition always ends at the end
+
+        # the reason min_partition_size can safely be incremented by one is because
+        # at this point we know that it did not successfully partition the list
+        self._min_partition_size += 1
+        if self._min_partition_size == self._max_partition_size:
+            return
+
+        # (optional) if there was no space left in the partitioning, this is the right answer
+        # this is probably an exceedingly rare case
+        # TODO: can we prove this never happens?
+        last_bound_start = self._partition_boundary_hi[-2] + 1
+        if last_bound_start <= len(self.xs) - 1:
+            if self.range_sum(last_bound_start, len(self.xs) - 1) == self._max_partition_size:
+                # print(self.xs)
+                # print(f'{self._max_partition_size=}')
+                # print(self.range_sum(self._partition_boundary_hi[-2], len(self.xs) - 1))
+                # print(self._partition_boundary_lo)
+                # print(self._partition_boundary_hi)
+                # print(self._max_partition_jump_table)
+                self._min_partition_size = self._max_partition_size
+                # return
+                raise RuntimeError('unexpected optimization happened')
+
+        # sanity check the boundaries
+        assert len(self._partition_boundary_lo) == self.k + 1
+        assert len(self._partition_boundary_hi) == self.k + 1
+        assert self._partition_boundary_lo[0] == -1
+        assert self._partition_boundary_hi[0] == -1
+        assert self._partition_boundary_lo[-1] == len(self.xs) - 1
+        assert self._partition_boundary_hi[-1] == len(self.xs) - 1  # this must have reached the end
+        assert all((hi >= lo) for hi, lo in zip(self._partition_boundary_hi, self._partition_boundary_lo))
 
     def __narrow_partition_boundary_lists(self):
         # this could totally have been merged into the above loop but is separate for improved readability
@@ -277,51 +321,16 @@ class PaintersPartitionSolver:
 
         # 2nd O(N) pass: precompute jump tables
         self.__build_jump_tables()
-
-        # 3rd O(K) pass: build partition boundary lookup tables
-        self.__build_partition_boundary_lists()
-
-        # early exit if the smallest possible partition is sufficient
-        # this means we've already found the answer
-        if self._partition_boundary_lo[-1] == len(self.xs) - 1:
-            self._max_partition_size = self._min_partition_size
-            return
-        self._partition_boundary_lo[-1] = len(self.xs) - 1  # the last partition always ends at the end
-
-        # the reason min_partition_size can safely be incremented by one is because
-        # at this point we know that it did not successfully partition the list
-        self._min_partition_size += 1
         if self._min_partition_size == self._max_partition_size:
             return
 
-        # (optional) if there was no space left in the partitioning, this is the right answer
-        # this is probably an exceedingly rare case
-        # TODO: can we prove this never happens?
-        last_bound_start = self._partition_boundary_hi[-2] + 1
-        if last_bound_start <= len(self.xs) - 1:
-            if self.range_sum(last_bound_start, len(self.xs) - 1) == self._max_partition_size:
-                # print(self.xs)
-                # print(f'{self._max_partition_size=}')
-                # print(self.range_sum(self._partition_boundary_hi[-2], len(self.xs) - 1))
-                # print(self._partition_boundary_lo)
-                # print(self._partition_boundary_hi)
-                # print(self._max_partition_jump_table)
-                self._min_partition_size = self._max_partition_size
-                # return
-                raise RuntimeError('unexpected optimization happened')
-
-        # sanity check the boundaries
-        assert len(self._partition_boundary_lo) == self.k + 1
-        assert len(self._partition_boundary_hi) == self.k + 1
-        assert self._partition_boundary_lo[0] == 0
-        assert self._partition_boundary_hi[0] == 0
-        assert self._partition_boundary_lo[-1] == len(self.xs) - 1
-        assert self._partition_boundary_hi[-1] == len(self.xs) - 1  # this must have reached the end
-        assert all((hi >= lo) for hi, lo in zip(self._partition_boundary_hi, self._partition_boundary_lo))
+        # 3rd O(K) pass: build partition boundary lookup tables
+        self.__build_partition_boundary_lists()
+        if self._min_partition_size == self._max_partition_size:
+            return
 
         # 4th O(N) pass: tighten partition bounds by looking in reverse
         self.__narrow_partition_boundary_lists()
-
         if self._min_partition_size == self._max_partition_size:
             return
 
@@ -356,6 +365,7 @@ class PaintersPartitionSolver:
         # TODO: keep a record of all the discovered partition points
         # so we can update the hi and lo partition boundaries
         # if we exit early we can still update the ones we found so far
+        # partition_boundaries = {}
 
         # TODO: use the linked list instead of iterating over all of k
         # when we skip a k we just take the prev k lo since that boundary is fixed
@@ -377,7 +387,11 @@ class PaintersPartitionSolver:
             # bisect_right returns insertion point.
             # We search in `_cumulative_sum` within the bounds [lo_idx, hi_idx + 1]
             # (Note: +1 because bisect range is lo, hi exclusive at end)
-            next_idx = bisect.bisect_right(self._cumulative_sum, target, lo=end_idx_lo, hi=min(end_idx_hi + 1, n)) - 1
+            next_idx = bisect.bisect_right(self._cumulative_sum,
+                                           target,
+                                           lo=end_idx_lo,
+                                           hi=min(end_idx_hi + 1, n),
+                                           ) - 1
 
             # so it turns out that the range might be constrained in a way the partition cannot happen
             # but bisect must still output something, even if it is incorrect
