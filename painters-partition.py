@@ -52,7 +52,6 @@ class PaintersPartitionSolver:
         also caches the min, max, and sum
 
         TODO: consider caching the len
-        :return:
         """
 
         xs_without_zeroes = []  # xs without any zeroes
@@ -82,7 +81,48 @@ class PaintersPartitionSolver:
         # reassign self.xs
         self.xs = xs_without_zeroes
 
+    def __calculate_partition_size_bounds(self):
+
+        # early exit if we have more workers than partitions
+        if self.k >= len(self.xs):
+            self._min_partition_size = self._max_partition_size = self._max_xs
+            return
+
+        # early exit when this special condition holds as we know the partition is just the max
+        if self.k % 2 == 1:
+            if self._max_xs * (self.k - 1) >= 2 * (self._sum_xs - max(self.xs[0], self.xs[-1])) - self.k + 1:
+                self._min_partition_size = self._max_partition_size = self._max_xs
+                return
+        else:
+            if self._max_xs * self.k >= 2 * self._sum_xs - self.k:
+                self._min_partition_size = self._max_partition_size = self._max_xs
+                return
+
+        # calculation of min and max partition size
+        self._min_partition_size = max(
+            self._max_xs,
+            int(math.ceil(self._sum_xs / self.k)),
+        )
+        self._max_partition_size = min(
+            self._sum_xs,
+            int(math.ceil(self._sum_xs / self.k)) + self._max_xs,
+        )
+
+        # tighter bound in this special case
+        if self._max_xs * self.k < self._sum_xs:
+            self._max_partition_size = min(
+                self._max_partition_size,
+                int(math.ceil((self._sum_xs + (self._max_xs - 1) * (self.k - 1)) / self.k)),
+            )
+
+        assert self._max_partition_size >= self._min_partition_size > 0
+
     def __build_jump_tables(self):
+        """
+        builds the forwards and backwards jump tables based on min and max partition sizes
+        """
+        assert self._max_partition_size > self._min_partition_size >= self._max_xs > 0
+
         pointer_min_left = 0
         pointer_max_left = 0
         max_observed_partition_size = 0
@@ -125,8 +165,8 @@ class PaintersPartitionSolver:
         assert all(self._min_partition_reverse_jump_table[i] <= i for i in range(1, len(self.xs)))
         assert all(self._max_partition_reverse_jump_table[i] <= i for i in range(1, len(self.xs)))
 
-        # validation pass - run in reverse just to make sure the reverse pass logic was right
-        # remove in production
+        # validation pass - run the whole thing in reverse just to make sure the reverse pass logic was right
+        # remove this entire block in production
         validation_min_partition_reverse_jump_table = []
         validation_max_partition_reverse_jump_table = []
         pointer_min_right = len(self.xs) - 1
@@ -146,10 +186,19 @@ class PaintersPartitionSolver:
         assert self._max_partition_reverse_jump_table == validation_max_partition_reverse_jump_table
 
     def __build_partition_boundary_lists(self):
+        """
+        builds the pair of (lo, hi) partition boundary constraint lists
 
-        # this could totally have been merged into the 2nd pass code, but is separate for improved readability
-        # the first partition always starts before item 0, i.e. after item "-1"
-        # this is just added for completeness, but is never actually used
+        this could totally have been merged into the 2nd pass code (building jump tables),
+        but is kept separate for improved readability
+
+        note that min partition size is incremented by one
+        unless it succeeded in which the max:=min since we found the answer
+        """
+
+        # the first partition always starts before item 0, i.e., after item "-1"
+        # this value is added for completeness, but is never actually used
+        # in practice we only use the values for indexes 1 through n-1, and ignore 0 and n, since those are fixed
         self._partition_boundary_lo.append(-1)
         self._partition_boundary_hi.append(-1)
         pointer_min_left = 0
@@ -164,8 +213,6 @@ class PaintersPartitionSolver:
             if pointer_max_left < len(self.xs) - 1:
                 pointer_max_left += 1
 
-
-
         # early exit if the smallest possible partition is sufficient
         # this means we've already found the answer
         if self._partition_boundary_lo[-1] == len(self.xs) - 1:
@@ -176,8 +223,6 @@ class PaintersPartitionSolver:
         # the reason min_partition_size can safely be incremented by one is because
         # at this point we know that it did not successfully partition the list
         self._min_partition_size += 1
-        if self._min_partition_size == self._max_partition_size:
-            return
 
         # (optional) if there was no space left in the partitioning, this is the right answer
         # this is probably an exceedingly rare case
@@ -205,7 +250,14 @@ class PaintersPartitionSolver:
         assert all((hi >= lo) for hi, lo in zip(self._partition_boundary_hi, self._partition_boundary_lo))
 
     def __narrow_partition_boundary_lists(self):
-        # this could totally have been merged into the above loop but is separate for improved readability
+        """
+        runs the partition boundary check code in reverse (from right to left)
+        which helps tighten the constraints for the second half of the set of partitions
+
+        note that this runs from right to left
+        also the min partition increases by one, and the max partition decreases by one
+        unless we found the answer in which case they will both be made equal
+        """
         pointer_min_right = len(self.xs) - 1
         pointer_max_right = len(self.xs) - 1
         for _k in range(self.k - 1, 0, -1):
@@ -242,14 +294,15 @@ class PaintersPartitionSolver:
 
         assert all((hi >= lo) for hi, lo in zip(self._partition_boundary_hi, self._partition_boundary_lo))
 
-        # early exit if the incremented pointer min right would not succeed, otherwise increment again
+        # early exit if the incremented pointer min right succeeded, since if it partitions this is the answer
         if self.range_sum(0, pointer_min_right) <= self._min_partition_size:
             self._max_partition_size = self._min_partition_size
             return
 
-        # if we used the max partition size, this must reach 0 by next step, which is encoded as the following assert
-        # assert self._max_partition_reverse_jump_table[pointer_max_right] == 0
-        # but because we aren't using the max partition size, it could fail which actually means we found the answer
+        # if we had used the max partition size, pointer_max_right must reach 0 by next step,
+        # and we could assert that `self._max_partition_reverse_jump_table[pointer_max_right] == 0`
+        # but because we aren't using the max partition size, it's possible for the condition to fail,
+        # in which case we've found that the minimum partition size is the current max, and hence is also the answer
         # early exit if the incremented pointer max right failed, otherwise decrement it
         if self.range_sum(0, pointer_max_right) > self._max_partition_size - 1:
             self._min_partition_size = self._max_partition_size
@@ -282,40 +335,7 @@ class PaintersPartitionSolver:
         if self.k == 0:
             raise ValueError(f'found invalid value {self.k} for `k`, which must be >0 when xs is not empty')
 
-        # early exit if we have more workers than partitions
-        if self.k >= len(self.xs):
-            self._min_partition_size = self._max_partition_size = self._max_xs
-            return
-
-        # early exit when this special condition holds as we know the partition is just the max
-        if self.k % 2 == 1:
-            if self._max_xs * (self.k - 1) >= 2 * (self._sum_xs - max(self.xs[0], self.xs[-1])) - self.k + 1:
-                self._min_partition_size = self._max_partition_size = self._max_xs
-                return
-        else:
-            if self._max_xs * self.k >= 2 * self._sum_xs - self.k:
-                self._min_partition_size = self._max_partition_size = self._max_xs
-                return
-
-        # calculation of min and max partition size
-        self._min_partition_size = max(
-            self._max_xs,
-            int(math.ceil(self._sum_xs / self.k)),
-        )
-        self._max_partition_size = min(
-            self._sum_xs,
-            int(math.ceil(self._sum_xs / self.k)) + self._max_xs,
-        )
-
-        # tighter bound in this special case
-        if self._max_xs * self.k < self._sum_xs:
-            self._max_partition_size = min(
-                self._max_partition_size,
-                int(math.ceil((self._sum_xs + (self._max_xs - 1) * (self.k - 1)) / self.k)),
-            )
-
-        assert self._min_partition_size > 0
-        assert self._max_partition_size >= self._min_partition_size
+        self.__calculate_partition_size_bounds()
         if self._min_partition_size == self._max_partition_size:
             return  # this also handles the case where k=1
 
