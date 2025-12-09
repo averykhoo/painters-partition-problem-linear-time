@@ -538,18 +538,22 @@ if __name__ == '__main__':
             print(f'[{attempt + 1}/{trials}]', len(xs), k)  # , xs)
         else:
             print(len(xs), k, xs)
+
         t = time.perf_counter()
         solver = PaintersPartitionSolver(xs=xs, k=k)
         print('precompute', time.perf_counter() - t)
         answer = solver.solve_partition()
         print('precompute + solver', time.perf_counter() - t)
+
         t = time.perf_counter()
         ans2 = painter_nlogs(xs, k)
-        print('optimized binary', time.perf_counter() - t)
+        print('N*log(S) binary', time.perf_counter() - t)
+
         t = time.perf_counter()
         ans3 = painter(xs, k)
-        print('binary', time.perf_counter() - t)
+        print('optimized binary', time.perf_counter() - t)
         print(answer)
+
         assert ans3 == ans2 == answer, ans2
         print('-' * 100)
 
