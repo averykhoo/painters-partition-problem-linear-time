@@ -51,7 +51,8 @@ class PaintersPartitionSolver:
         builds the cumulative sum array
         also caches the min, max, and sum
 
-        TODO: consider caching the len
+        the len is not cached since that's O(1) in python anyway
+        but in some other languages that might be needed to maintain the overall runtime bound
         """
 
         xs_without_zeroes = []  # xs without any zeroes
@@ -82,13 +83,17 @@ class PaintersPartitionSolver:
         self.xs = xs_without_zeroes
 
     def __calculate_partition_size_bounds(self):
+        """
+        checks some conditions and calculates the smallest possible and largest necessary partition sizes
+        these bounds are inclusive (and obviously closed), and if min==max then that is the only possible answer
+        """
 
         # early exit if we have more workers than partitions
         if self.k >= len(self.xs):
             self._min_partition_size = self._max_partition_size = self._max_xs
             return
 
-        # early exit when this special condition holds as we know the partition is just the max
+        # early exit when this special condition holds - we know the partition is exactly equal to the max
         if self.k % 2 == 1:
             if self._max_xs * (self.k - 1) >= 2 * (self._sum_xs - max(self.xs[0], self.xs[-1])) - self.k + 1:
                 self._min_partition_size = self._max_partition_size = self._max_xs
