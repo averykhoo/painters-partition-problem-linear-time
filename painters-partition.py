@@ -374,13 +374,9 @@ class PaintersPartitionSolver:
             _range_sum -= self._cumulative_sum[start - 1]
         return _range_sum
 
-    def test_partition(self, partition_size: int) -> bool:
+    def test_partition(self, partition_size: int) -> int:
         """
-        if too small (i.e., couldn't fit into the partitions), returns False
-        if it fits (or is too big), returns True
-
-        TODO: consider if we can return an "excess amount" or the extra space
-        this is a sort of gradient that can inform the outer loop to make better guesses
+        this outputs a sort of gradient that can inform the outer loop to make better guesses
         -> return zero iff the last partition is completely full
         -> return the unused space at the end if the partitioning succeeded
         -> return -1 * (the unallocated stuff in xs) if the partitioning failed
@@ -423,24 +419,27 @@ class PaintersPartitionSolver:
             # but bisect must still output something, even if it is incorrect
             # if this o(1) sanity check fails, we just exit false
             if self.range_sum(start_idx, next_idx) > partition_size:
-                return False
+                return -1  # TODO: return the amount by which it failed?
 
-            # If we reached the end of the array, we are done
+            # if we reached the end of the array, we are done
             if next_idx >= n - 1:
-                return True
+                remainder_this_partition = partition_size - self.range_sum(start_idx, next_idx)
+                assert remainder_this_partition >= 0
+                remainder_remaining_partitions = (self.k - 1 - _k) * partition_size
+                assert remainder_remaining_partitions >= 0
+                print(f'{partition_size=} {remainder_this_partition=} {remainder_remaining_partitions=}')
+                return remainder_this_partition + remainder_remaining_partitions
 
+            # the next partition starts with the next item (and must include at least one item)
             start_idx = next_idx + 1
-
-            # If current_idx went past the bounds, something is wrong or finished (handled above)
-            if start_idx >= n:
-                return True
+            assert start_idx <= n - 1
 
         # TODO: update partition hi or lo before returning
         # this should probably be its own class method - pass the dict and let it update
 
         # if we reached this point, then we've "used up" all k partitions but have remaining stuff in xs
         # so the partitioning failed
-        return False
+        return -2
 
     def solve_partition(self) -> int:
         """
@@ -454,9 +453,6 @@ class PaintersPartitionSolver:
         # but because we can optimize further when the partition is smaller but still too big
         # it requires (this sentence was cut off...? well wtv refer to readme)
 
-        # TODO: consider whether test partition should return a gradient of some sort
-        # so we can determine a more intelligent next guess
-
         if not self.xs: return 0
 
         # note that min and max partition sizes are both inclusive
@@ -466,7 +462,13 @@ class PaintersPartitionSolver:
 
             # we assume nobody else is updating the min and max partition sizes
             # TODO: if we update from inside tst_partition, don't update here, or constrain via min/max
-            if self.test_partition(mid):
+            # TODO: the returned value should be a meaningful "gradient", do something more intelligent than `>=0`
+            # it's almost certainly possible to calculate a better next best guess,
+            # but make sure it's within the bounds (which might be updated from inside test_partition)
+            remaining_excess_space = self.test_partition(mid)
+            if remaining_excess_space == 0:  # if we found a perfect fit, then this is the answer
+                self._min_partition_size = self._max_partition_size = mid
+            elif remaining_excess_space > 0:
                 self._max_partition_size = mid  # to keep the range inclusive, we don't use max=mid-1
             else:
                 self._min_partition_size = mid + 1
