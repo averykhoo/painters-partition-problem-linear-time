@@ -496,8 +496,12 @@ def painter(xs, k):
                 current_sum += x
         return True
 
-    # maximum of log(sum(xs)-max(xs)) iterations
-    values = range(max(xs), sum(xs) + 1)  # does not actually create the full list
+    # maximum of log(min(sum(xs)/k,max(xs))) iterations
+    _not_really_mean = math.ceil(sum(xs) / k)
+    _max = max(xs)
+    values = range(max(_max, _not_really_mean),
+                   min(sum(xs), _max + _not_really_mean) + 1,
+                   )  # note that `range` does not actually create the full list
     index = bisect.bisect_left(values, True, key=is_possible)
     return values[index]
 
