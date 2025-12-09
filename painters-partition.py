@@ -37,7 +37,6 @@ class PaintersPartitionSolver:
     # lists of length (k+1) for the bounds of all endpoints for all partitions
     # the 1st partition always starts at the start of the list, so both lists always start with 0
     # the k-th partition always ends at the end of the list, so both lists always end with len(xs)
-    # TODO: fine-tune the boundary definition which currently is a bit fuzzy
     # note that a boundary lies immediately after the index number, i.e.:
     # 0 points at the `,` in `[0,1]`
     _partition_boundary_lo: list[int] = field(init=False, default_factory=list)
@@ -381,8 +380,10 @@ class PaintersPartitionSolver:
         if it fits (or is too big), returns True
 
         TODO: consider if we can return an "excess amount" or the extra space
-        returning zero iff the last partition is completely full
         this is a sort of gradient that can inform the outer loop to make better guesses
+        -> return zero iff the last partition is completely full
+        -> return the unused space at the end if the partitioning succeeded
+        -> return -1 * (the unallocated stuff in xs) if the partitioning failed
         """
         start_idx = 0
         n = len(self.xs)
@@ -437,6 +438,8 @@ class PaintersPartitionSolver:
         # TODO: update partition hi or lo before returning
         # this should probably be its own class method - pass the dict and let it update
 
+        # if we reached this point, then we've "used up" all k partitions but have remaining stuff in xs
+        # so the partitioning failed
         return False
 
     def solve_partition(self) -> int:
