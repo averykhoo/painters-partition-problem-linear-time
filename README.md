@@ -1,9 +1,15 @@
 # linear time algorithm for the painter's partition problem
 
-a totally unnecessary `O(N)` solution to the painters partition problem
+* a totally unnecessary `O(N)` solution to the painters partition problem, also formulated as:
+  * book allocation problem / allocate minimum pages
+  * capacity to ship packages
+  * split array largest sum
+* reformulated as a dual problem:
+  * aggressive cows
+  * divide chocolate
 
-it achieves speedups compared to the usual `O(N*log(S))` solution when the array `xs` is super huge
-(and currently, when `k` is not huge, but that's because of unimplemented optimizations)
+this achieves theoretical reductions in big O runtime (compared to the usual `O(N*log(S))` solution)
+but in practice it is always slower, as would be expected of overcomplicated research-grade code
 
 ## how it works
 

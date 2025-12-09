@@ -327,6 +327,10 @@ class PaintersPartitionSolver:
         # edge case
         if len(self.xs) == 0:
             return  # no work needs to be done
+        # don't bother with the O(N) precompute, just let the underlying c code for `max(xs)` do the work
+        if self.k >= len(self.xs):
+            self._min_partition_size = self._max_partition_size = max(self.xs)
+            return
 
         # 1st O(N) pass: loop to precompute all the properties of xs
         self.__build_cumulative_sum()
@@ -427,7 +431,7 @@ class PaintersPartitionSolver:
                 assert remainder_this_partition >= 0
                 remainder_remaining_partitions = (self.k - 1 - _k) * partition_size
                 assert remainder_remaining_partitions >= 0
-                print(f'{partition_size=} {remainder_this_partition=} {remainder_remaining_partitions=}')
+                # print(f'{partition_size=} {remainder_this_partition=} {remainder_remaining_partitions=}')
                 return remainder_this_partition + remainder_remaining_partitions
 
             # the next partition starts with the next item (and must include at least one item)
@@ -476,22 +480,25 @@ class PaintersPartitionSolver:
 
 
 def painter(xs, k):
-    # O(len(xs) * log(sum(xs))
-    if sum(xs) == 0: return 0
+    # overall O(len(xs) * log(sum(xs)-max(xs))
+    if not xs: return 0  # handle empty list, for parity with the code above
 
-    def is_possible(time_limit):
-        count, current_sum = 1, 0
-        for length in xs:
-            if current_sum + length > time_limit:
-                count += 1
-                current_sum = length
+    def is_possible(partition_size):
+        # O(len(xs))
+        current_partition, current_sum = 1, 0
+        for x in xs:
+            if current_sum + x > partition_size:
+                if current_partition == k:
+                    return False
+                current_partition += 1
+                current_sum = x
             else:
-                current_sum += length
-        return count <= k
+                current_sum += x
+        return True
 
-    values = range(max(xs), sum(xs) + 1)
+    # maximum of log(sum(xs)-max(xs)) iterations
+    values = range(max(xs), sum(xs) + 1)  # does not actually create the full list
     index = bisect.bisect_left(values, True, key=is_possible)
-
     return values[index]
 
 
@@ -529,6 +536,6 @@ if __name__ == '__main__':
                 tst_painter(list(range(_i)) * j, test_k)
 
     for _attempt in range(_trials := 100):
-        test_xs = [random.randint(1, 1_000_000_000) for _ in range(random.randint(1, 1000_000))]
-        test__k = random.randint(1, 1_000)
-        tst_painter(test_xs, test__k, _attempt, _trials)
+        test_xs = [random.randint(1, 1000_000) for _ in range(random.randint(2, 1000_000))]
+        test_k = random.randint(1, len(test_xs) - 1)
+        tst_painter(test_xs, test_k, _attempt, _trials)
