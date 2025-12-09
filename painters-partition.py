@@ -485,6 +485,7 @@ def painter(xs, k):
 
     def is_possible(partition_size):
         # O(len(xs))
+        # note: this cannot correctly handle the case where partition_size < max(xs)
         current_partition, current_sum = 1, 0
         for x in xs:
             if current_sum + x > partition_size:
@@ -506,6 +507,26 @@ def painter(xs, k):
     return values[index]
 
 
+def painter_nlogs(xs, k):
+    # O(len(xs) * log(sum(xs))
+    if sum(xs) == 0: return 0
+
+    def is_possible(partition_size):
+        # note: this does not return correct answers if partition_size < max(xs)
+        current_partition = 1
+        current_sum = 0
+        for quantity in xs:
+            if quantity > partition_size:
+                return False
+            if current_sum + quantity > partition_size:
+                current_partition += 1
+                current_sum = 0
+            current_sum += quantity
+        return current_partition <= k
+
+    return bisect.bisect_left(range(sum(xs) + 1), True, key=is_possible)
+
+
 if __name__ == '__main__':
     import random
     import time
@@ -523,10 +544,13 @@ if __name__ == '__main__':
         answer = solver.solve_partition()
         print('precompute + solver', time.perf_counter() - t)
         t = time.perf_counter()
-        ans2 = painter(xs, k)
-        print('dp', time.perf_counter() - t)
+        ans2 = painter_nlogs(xs, k)
+        print('optimized binary', time.perf_counter() - t)
+        t = time.perf_counter()
+        ans3 = painter(xs, k)
+        print('binary', time.perf_counter() - t)
         print(answer)
-        assert ans2 == answer, ans2
+        assert ans3 == ans2 == answer, ans2
         print('-' * 100)
 
 
