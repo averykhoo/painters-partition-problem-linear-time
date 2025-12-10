@@ -483,7 +483,80 @@ def painter(xs, k):
     # overall O(len(xs) * log(sum(xs)-max(xs))
     if not xs: return 0  # handle empty list, for parity with the code above
 
-    def is_possible(partition_size):
+    _cumulative_sum = list(itertools.accumulate(xs))
+    _max = max(xs)
+    _len = len(xs)
+    _not_really_mean = math.ceil(_cumulative_sum[-1] / k)  # the last item of the cumsum is the total sum
+    _min_partition_size = max(_max, _not_really_mean)
+    _max_partition_size = min(_cumulative_sum[-1], _max + _not_really_mean)
+
+    def range_sum(start, end):
+        _range_sum = _cumulative_sum[end]
+        if start:
+            _range_sum -= _cumulative_sum[start - 1]
+        return _range_sum
+
+    _min_partition_jump_table = []
+    _max_partition_jump_table = []
+    _min_partition_reverse_jump_table = [0] * _len
+    _max_partition_reverse_jump_table = [0] * _len
+
+    pointer_min_left = 0
+    pointer_max_left = 0
+    for i in range(_len):
+        while range_sum(pointer_min_left, i) > _min_partition_size:
+            _min_partition_jump_table.append(i - 1)
+            pointer_min_left += 1
+        while range_sum(pointer_max_left, i) > _max_partition_size:
+            _max_partition_jump_table.append(i - 1)
+            pointer_max_left += 1
+        _min_partition_reverse_jump_table[i] = pointer_min_left
+        _max_partition_reverse_jump_table[i] = pointer_max_left
+    _min_partition_jump_table.extend([_len - 1] * (_len - pointer_min_left))
+    _max_partition_jump_table.extend([_len - 1] * (_len - pointer_max_left))
+
+    def test_partition(partition_size):
+        start_idx = 0
+        for _k in range(k):
+            end_idx_lo = _min_partition_jump_table[start_idx]
+            end_idx_hi = _max_partition_jump_table[start_idx]
+            prev_sum = range_sum(0, start_idx - 1) if _k else 0
+            target = prev_sum + partition_size
+            next_idx = bisect.bisect_right(_cumulative_sum,
+                                           target,
+                                           lo=end_idx_lo,
+                                           hi=end_idx_hi + 1,
+                                           ) - 1
+
+            if next_idx >= _len - 1:
+                return True
+
+            start_idx = next_idx + 1
+        return False
+
+    # maximum of log(min(sum(xs)/k,max(xs))) iterations
+    values = range(_min_partition_size,
+                   _max_partition_size + 1)  # note that `range` does not actually create the full list
+    index = bisect.bisect_left(values, True, key=test_partition)
+    return values[index]
+
+
+def painter2(xs, k):
+    # overall O(len(xs) * log(sum(xs)-max(xs))
+    if not xs: return 0  # handle empty list, for parity with the code above
+
+    _cum_sum = list(itertools.accumulate(xs))
+    _max = max(xs)
+    if _max * k >= 2 * _cum_sum[-1] - k:
+        return _max
+
+    _not_really_mean = math.ceil(_cum_sum[-1] / k)  # the last item of the cumsum is the total sum
+    _min_partition_size = max(_max, _not_really_mean)
+    _max_partition_size = min(_cum_sum[-1], _max + _not_really_mean)
+    if _max * k < _cum_sum[-1]:
+        _max_partition_size = min(_max_partition_size, int(math.ceil((_cum_sum[-1] + (_max - 1) * (k - 1)) / k)))
+
+    def test_partition(partition_size):
         # O(len(xs))
         # note: this cannot correctly handle the case where partition_size < max(xs)
         current_partition, current_sum = 1, 0
@@ -498,12 +571,8 @@ def painter(xs, k):
         return True
 
     # maximum of log(min(sum(xs)/k,max(xs))) iterations
-    _not_really_mean = math.ceil(sum(xs) / k)
-    _max = max(xs)
-    values = range(max(_max, _not_really_mean),
-                   min(sum(xs), _max + _not_really_mean) + 1,
-                   )  # note that `range` does not actually create the full list
-    index = bisect.bisect_left(values, True, key=is_possible)
+    values = range(_min_partition_size, _max_partition_size + 1)  # note that `range` does not create the full list
+    index = bisect.bisect_left(values, True, key=test_partition)
     return values[index]
 
 
@@ -511,7 +580,7 @@ def painter_nlogs(xs, k):
     # O(len(xs) * log(sum(xs))
     if sum(xs) == 0: return 0
 
-    def is_possible(partition_size):
+    def test_partition(partition_size):
         # note: this does not return correct answers if partition_size < max(xs)
         current_partition = 1
         current_sum = 0
@@ -524,7 +593,7 @@ def painter_nlogs(xs, k):
             current_sum += quantity
         return current_partition <= k
 
-    return bisect.bisect_left(range(sum(xs) + 1), True, key=is_possible)
+    return bisect.bisect_left(range(sum(xs) + 1), True, key=test_partition)
 
 
 if __name__ == '__main__':
@@ -551,10 +620,14 @@ if __name__ == '__main__':
 
         t = time.perf_counter()
         ans3 = painter(xs, k)
-        print('optimized binary', time.perf_counter() - t)
-        print(answer)
+        print('more optimized binary', time.perf_counter() - t)
 
-        assert ans3 == ans2 == answer, ans2
+        t = time.perf_counter()
+        ans4 = painter2(xs, k)
+        print('less optimized binary', time.perf_counter() - t)
+
+        print(answer)
+        assert ans4 == ans3 == ans2 == answer, ans2
         print('-' * 100)
 
 
