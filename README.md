@@ -243,6 +243,7 @@ there must be a better proof but wtv
 * figure out how to calculate complexity as k decreases over time with the linked list trick
 * if any successful partitioning has zero storage left, then that is the min partition and we can return
 * check if remaining stuff is more than (k- current)*p, then exit
+* if xs has stuff but k is zero, raise ZeroDivisionError instead of ValueError?
 
 # ideas from Gemini
 
